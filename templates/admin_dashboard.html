@@ -1,0 +1,152 @@
+{% extends 'admin_base.html' %}
+
+{% block title %}Admin Dashboard{% endblock %}
+
+{% block head %}
+  <style>
+    .glass-nav { background: rgba(255,255,255,0.9); backdrop-filter: blur(10px); border-bottom: 1px solid #e2e8f0; }
+    .section-title { font-size: 1.6rem; font-weight: 700; color: #f97316; margin-bottom: 1rem; }
+  </style>
+{% endblock %}
+
+{% block content %}
+  <!-- Top navbar -->
+  <div class="flex items-center justify-between mb-6">
+    <div class="flex items-center gap-4">
+      <h1 class="text-2xl font-bold">Dashboard</h1>
+      <div class="text-sm text-slate-500">Overview</div>
+    </div>
+    <div class="flex items-center gap-4">
+      <div class="relative">
+        <button id="notifBtn" class="px-3 py-2 rounded-lg bg-white border border-slate-200 shadow-sm text-slate-800">Notifications ({{ notifications|length }})</button>
+      </div>
+      <div class="relative">
+        <button class="px-3 py-2 rounded-lg bg-white border border-slate-200 shadow-sm text-slate-800">{{ session.get('user') }}</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stat cards -->
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+    <div class="p-4 bg-white rounded-xl shadow-lg border border-slate-200">
+      <div class="text-sm text-slate-500">Active Players</div>
+      <div class="text-2xl font-bold text-orange-500">{{ users|length }}</div>
+    </div>
+    <div class="p-4 bg-white rounded-xl shadow-lg border border-slate-200">
+      <div class="text-sm text-slate-500">Ongoing Matches</div>
+      <div class="text-2xl font-bold text-orange-500">{{ match_counts.get('ongoing', 0) }}</div>
+      <div class="text-xs text-slate-500 mt-1">Upcoming: {{ match_counts.get('upcoming', 0) }}</div>
+    </div>
+    <div id="slotsCard" class="p-4 bg-white rounded-xl shadow-lg border border-slate-200">
+      <div class="text-sm text-slate-500">Slots Left (total)</div>
+      <div id="slotsCount" class="text-2xl font-bold text-orange-500">--</div>
+      <div class="text-xs text-slate-500 mt-1">Live updates every 5s</div>
+    </div>
+    <div class="p-4 bg-white rounded-xl shadow-lg border border-slate-200">
+      <div class="text-sm text-slate-500">Revenue Today</div>
+      <div class="text-2xl font-bold text-orange-500">₹{{ total_revenue }}</div>
+    </div>
+  </div>
+
+  <!-- Charts -->
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+    <div class="p-4 bg-white rounded-xl shadow-lg border border-slate-200">
+      <h3 class="font-semibold mb-2 text-slate-900">Registrations by Mode</h3>
+      <canvas id="modeChart"></canvas>
+    </div>
+    <div class="p-4 bg-white rounded-xl shadow-lg border border-slate-200">
+      <h3 class="font-semibold mb-2 text-slate-900">Registrations Over Time</h3>
+      <canvas id="timeChart"></canvas>
+    </div>
+  </div>
+
+  <!-- Quick lists -->
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div class="p-4 bg-white rounded-xl shadow-lg border border-slate-200">
+      <h3 class="font-semibold mb-3 text-slate-900">Recent Notifications</h3>
+      <div class="space-y-2">
+        {% for n in notifications[:6] %}
+          <div class="p-2 bg-slate-50 rounded flex justify-between items-start border border-slate-200">
+            <div>
+              <div class="font-semibold text-slate-900">{{ n[2] }}</div>
+              <div class="text-xs text-slate-500">{{ n[5] }}</div>
+            </div>
+            <div class="text-xs text-slate-500">{{ n[3] }}</div>
+          </div>
+        {% else %}
+          <div class="text-slate-500">No notifications yet.</div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="p-4 bg-white rounded-xl shadow-lg border border-slate-200">
+      <h3 class="font-semibold mb-3 text-slate-900">Signups Today</h3>
+      <div class="space-y-2">
+        {% if signups_today %}
+            {% for s in signups_today[:8] %}
+                <div class="p-2 bg-slate-50 rounded flex justify-between items-center border border-slate-200">
+                    <div>
+                        <div class="font-semibold text-slate-900">{{ s[1] }}</div>
+                        <div class="text-xs text-slate-500">{{ s[2] }} • {{ s[3] }}</div>
+                    </div>
+                    <div>
+                        <button class="delete-user px-2 py-1 text-xs bg-red-600 text-white rounded" data-id="{{ s[0] }}">Delete</button>
+                    </div>
+                </div>
+            {% endfor %}
+        {% else %}
+            <div class="text-slate-500">No new signups today.</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block scripts %}
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+      const registrations = {{ registrations|tojson }};
+      const modeCounts = {};
+      registrations.forEach(r => { const mode = r[5]; modeCounts[mode] = (modeCounts[mode] || 0) + 1; });
+      const modeLabels = Object.keys(modeCounts);
+      const modeData = Object.values(modeCounts);
+
+      const timeCounts = {};
+      registrations.forEach(r => { const date = r[12] ? r[12].split(' ')[0] : 'unknown'; timeCounts[date] = (timeCounts[date] || 0) + 1; });
+      const timeLabels = Object.keys(timeCounts);
+      const timeData = Object.values(timeCounts);
+
+      new Chart(document.getElementById('modeChart').getContext('2d'), { type: 'doughnut', data: { labels: modeLabels, datasets: [{ data: modeData, backgroundColor:['#f97316','#ec4899','#6366f1','#22d3ee'] }] }, options: { plugins:{legend:{labels:{color:'#0f172a'}}}} });
+      new Chart(document.getElementById('timeChart').getContext('2d'), { type: 'line', data:{ labels: timeLabels, datasets:[{ label:'Registrations', data: timeData, borderColor:'#f97316', backgroundColor:'rgba(249,115,22,0.2)', fill:true }]}, options:{ scales:{ x:{ ticks:{ color:'#0f172a'}}, y:{ ticks:{ color:'#0f172a'} } } } });
+
+  // Poll overview endpoint for live dashboard data
+  async function fetchOverview(){
+    try{
+      const r = await fetch('/admin/overview_status');
+      const j = await r.json();
+      if(j.success){
+        const slotsEl = document.getElementById('slotsCount');
+        if(slotsEl) slotsEl.innerText = j.events.reduce((s,e)=> s + (e.slots_left||0), 0);
+        document.getElementById('notifBtn').innerText = `Notifications (${j.unread_notifications})`;
+      }
+    }catch(e){ console.log('Overview fetch error', e); }
+  }
+  fetchOverview();
+  setInterval(fetchOverview, 5000);
+  </script>
+
+  <script>
+      // Reuse admin actions binding
+      async function postJson(url){ try{ const r = await fetch(url, { method:'POST' }); return await r.json(); }catch(e){ return { success:false, error:String(e) }; } }
+      document.querySelectorAll('.delete-user').forEach(btn=> btn.addEventListener('click', async e=>{ if(!confirm('Delete this user?')) return; const res = await postJson(`/admin/delete_user/${e.target.dataset.id}`); if(res.success) location.reload(); else alert('Failed: '+(res.error||'unknown')); }));
+      document.querySelectorAll('.delete-registration').forEach(btn => {
+          btn.addEventListener('click', async (e) => {
+              const id = e.target.dataset.id;
+              if(!confirm('Delete this registration?')) return;
+              const res = await postJson(`/admin/delete_registration/${id}`);
+              if(res.success) location.reload(); else alert('Failed: '+(res.error||'unknown'));
+          });
+      });
+  </script>
+{% endblock %}
+ 

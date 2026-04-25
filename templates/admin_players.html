@@ -1,0 +1,41 @@
+{% extends 'admin_base.html' %}
+{% block title %}Admin - Players{% endblock %}
+{% block content %}
+  <div class="max-w-6xl mx-auto pt-4 px-4">
+    <h1 class="text-2xl font-bold mb-4 text-slate-900">Players</h1>
+    <div class="grid gap-2">
+      {% for u in users %}
+      <div class="p-3 bg-white rounded-lg flex items-center justify-between border border-slate-200 shadow-sm">
+        <div>
+          <div class="font-semibold text-slate-900">{{ u.username }} <span class="text-sm text-slate-500">({{ u.role }})</span></div>
+          <div class="text-sm text-slate-600">{{ u.email }} • {{ u.game_id or '' }} • {{ u.phone or '' }}</div>
+        </div>
+        <div class="flex gap-2">
+          <button data-id="{{ u.id }}" class="delete-user px-3 py-1 bg-red-600 rounded">Delete</button>
+        </div>
+      </div>
+      {% else %}
+      <div class="text-slate-500">No players.</div>
+      {% endfor %}
+    </div>
+  </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  async function postJson(url){
+    try{
+      const r = await fetch(url, { method:'POST' });
+      return await r.json();
+    }catch(e){
+      return { success:false, error:String(e) };
+    }
+  }
+  document.querySelectorAll('.delete-user').forEach(btn => btn.addEventListener('click', async e => {
+    if(!confirm('Delete this user and reclaim slots?')) return;
+    const id = e.target.dataset.id;
+    const res = await postJson('/admin/delete_user/' + id);
+    if(res.success) location.reload(); else alert('Failed: ' + (res.error||'unknown'));
+  }));
+</script>
+{% endblock %}

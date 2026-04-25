@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{% block title %}Admin{% endblock %} • BATTLE-X</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --nav-height: 72px;
+      --admin-bg: #f4f7fb;
+      --admin-surface: #ffffff;
+      --admin-accent: #2563eb;
+      --admin-accent-dark: #1d4ed8;
+      --admin-muted: #5b6b83;
+      --admin-border: #d9e3f8;
+      --admin-shadow: 0 25px 60px rgba(15, 23, 42, 0.08);
+      --admin-text: #0f172a;
+    }
+    body { font-family: 'Poppins', sans-serif; }
+    html, body { height: 100%; }
+    body.admin-theme {
+      background: var(--admin-bg);
+      color: var(--admin-text);
+    }
+    .admin-sidebar {
+      width: 16.5rem;
+      background: var(--admin-surface);
+      border-right: 1px solid var(--admin-border);
+      box-shadow: var(--admin-shadow);
+    }
+        .admin-sidebar__title {
+          color: var(--admin-text);
+          font-size: 1.05rem;
+          font-weight: 600;
+        }
+    .admin-sidebar__header {
+      font-size: 0.75rem;
+      letter-spacing: 0.15em;
+      color: var(--admin-muted);
+      text-transform: uppercase;
+    }
+    .admin-nav-link {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      padding: 0.65rem 0.85rem;
+      border-radius: 0.65rem;
+      font-weight: 600;
+      color: var(--admin-muted);
+      transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+    }
+    .admin-nav-link:hover {
+      background: rgba(37, 99, 235, 0.08);
+      color: var(--admin-accent);
+    }
+    .admin-nav-link.is-active {
+      background: linear-gradient(120deg, var(--admin-accent), var(--admin-accent-dark));
+      color: #ffffff;
+      box-shadow: 0 10px 25px rgba(37, 99, 235, 0.25);
+    }
+    main.admin-main {
+      background: transparent;
+      color: var(--admin-text);
+    }
+    /* Light re-skin of the legacy Tailwind utility classes used throughout admin templates */
+    body.admin-theme .bg-gray-950,
+    body.admin-theme .bg-gray-950\/60,
+    body.admin-theme .bg-gray-950\/70,
+    body.admin-theme .bg-gray-950\/90,
+    body.admin-theme .bg-gray-900,
+    body.admin-theme .bg-gray-900\/40,
+    body.admin-theme .bg-gray-900\/60,
+    body.admin-theme .bg-gray-900\/70,
+    body.admin-theme .bg-gray-900\/80,
+    body.admin-theme .bg-gray-900\/90,
+    body.admin-theme .bg-gray-800,
+    body.admin-theme .bg-gray-800\/60,
+    body.admin-theme .bg-gray-800\/70,
+    body.admin-theme .bg-gray-700,
+    body.admin-theme .bg-gray-700\/70 {
+      background-color: var(--admin-surface) !important;
+      color: var(--admin-text) !important;
+    }
+    body.admin-theme .border-gray-800,
+    body.admin-theme .border-gray-900,
+    body.admin-theme .border-gray-700 {
+      border-color: var(--admin-border) !important;
+    }
+    body.admin-theme .text-white,
+    body.admin-theme .text-gray-100,
+    body.admin-theme .text-gray-200 {
+      color: var(--admin-text) !important;
+    }
+    body.admin-theme .text-gray-300,
+    body.admin-theme .text-gray-400,
+    body.admin-theme .text-gray-500,
+    body.admin-theme .text-gray-600 {
+      color: var(--admin-muted) !important;
+    }
+    body.admin-theme .hover\:bg-gray-800:hover,
+    body.admin-theme .hover\:bg-gray-900:hover {
+      background-color: rgba(37, 99, 235, 0.08) !important;
+      color: var(--admin-accent) !important;
+    }
+    /* Cards + panels */
+    body.admin-theme .shadow-lg,
+    body.admin-theme .shadow-xl {
+      box-shadow: var(--admin-shadow) !important;
+    }
+  </style>
+  {% block head %}{% endblock %}
+</head>
+<body class="admin-theme">
+  {% include '_navbar.html' %}
+  {% set p = request.path %}
+
+  <!-- Fixed full-height left sidebar (hidden on small screens) -->
+  <aside class="admin-sidebar hidden md:block fixed left-0 top-[56px] h-[calc(100vh-56px)] w-64 z-40">
+    <div class="pt-6 px-5 flex flex-col gap-4">
+      <div>
+        <p class="admin-sidebar__header mb-1">BATTLE-X</p>
+        <p class="admin-sidebar__title">Admin Control</p>
+      </div>
+      <nav class="space-y-1 text-sm">
+        {% set active = p == url_for('admin_dashboard') %}
+        <a href="{{ url_for('admin_dashboard') }}" class="admin-nav-link {{ 'is-active' if active else '' }}">🏠 Dashboard</a>
+        {% set active = p == url_for('admin_events') %}
+        <a href="{{ url_for('admin_events') }}" class="admin-nav-link {{ 'is-active' if active else '' }}">🏟️ Events</a>
+        {% set active = p == url_for('admin_matches') %}
+        <a href="{{ url_for('admin_matches') }}" class="admin-nav-link {{ 'is-active' if active else '' }}">🎮 Matches</a>
+        {% set active = p == url_for('admin_payments') %}
+        <a href="{{ url_for('admin_payments') }}" class="admin-nav-link {{ 'is-active' if active else '' }}">💳 Payments</a>
+        {% set active = p == url_for('admin_players') %}
+        <a href="{{ url_for('admin_players') }}" class="admin-nav-link {{ 'is-active' if active else '' }}">👥 Players</a>
+        {% set active = p == url_for('admin_settings') %}
+        <a href="{{ url_for('admin_settings') }}" class="admin-nav-link {{ 'is-active' if active else '' }}">⚙️ Settings</a>
+      </nav>
+    </div>
+  </aside>
+
+  <!-- Main content pushed right on md+ to make room for the sidebar -->
+  <main class="admin-main min-h-screen pt-6 pb-10 px-4 md:ml-64">
+    {% block content %}
+    <!-- ...existing content... -->
+    {% endblock %}
+  </main>
+
+  {% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Contact Us | BATTLE-X</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    body { margin: 0; font-family: 'Poppins', sans-serif; background: #f8fafc; color: #0f172a; }
+    .wrap { width: min(1000px, 94vw); margin: 24px auto 52px; }
+    .hero { border: 1px solid #e2e8f0; border-radius: 18px; background: linear-gradient(135deg, #ecfeff, #ffffff); padding: 22px; }
+    .grid { margin-top: 14px; display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+    .card { border: 1px solid #e2e8f0; border-radius: 14px; background: #fff; padding: 16px; }
+    h1 { margin: 0 0 8px; font-size: clamp(30px, 4.5vw, 40px); }
+    h2 { margin: 0 0 8px; color: #0f766e; font-size: 18px; }
+    p, li { color: #334155; line-height: 1.65; font-size: 14px; margin: 0; }
+    ul { margin: 0; padding-left: 18px; }
+    .action-row { margin-top: 16px; display: flex; gap: 10px; flex-wrap: wrap; }
+    .btn { text-decoration: none; padding: 10px 14px; border-radius: 10px; border: 1px solid #e2e8f0; color: #0f172a; font-weight: 700; background: #fff; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="hero">
+      <h1>Contact Us</h1>
+      <p>Need support with registrations, payments, refunds, rule disputes, or account access? Use the channels below for faster resolution.</p>
+    </section>
+
+    <section class="grid">
+      <article class="card">
+        <h2>General Support</h2>
+        <ul>
+          <li>Best for account issues, signup/login help, and profile updates.</li>
+          <li>Typical response window: within 24 hours.</li>
+        </ul>
+      </article>
+      <article class="card">
+        <h2>Tournament Disputes</h2>
+        <ul>
+          <li>For score disputes, anti-cheat evidence, and match verification tickets.</li>
+          <li>Include registration ID, event name, and proof links.</li>
+        </ul>
+      </article>
+      <article class="card">
+        <h2>Payments & Refunds</h2>
+        <ul>
+          <li>For payment mismatch, failed debit, delayed payout, or refund status.</li>
+          <li>Include payment reference and registered username.</li>
+        </ul>
+      </article>
+      <article class="card">
+        <h2>Business / Partnerships</h2>
+        <ul>
+          <li>For sponsorships, tournaments, media, and promotional campaigns.</li>
+          <li>Share your proposal and expected collaboration scope.</li>
+        </ul>
+      </article>
+    </section>
+
+    <div class="action-row">
+      <a class="btn" href="/login">Open Support Ticket</a>
+      <a class="btn" href="/faq">View FAQ</a>
+      <a class="btn" href="/">Back to Home</a>
+    </div>
+  </div>
+</body>
+</html>

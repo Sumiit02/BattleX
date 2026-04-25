@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>BGMI — Coming Soon — BATTLE-X</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <style>
+    body{margin:0;background:linear-gradient(180deg,#f8fafc 0%,#e2e8f0 100%);color:#0f172a;font-family:Inter,system-ui,-apple-system,'Segoe UI',Roboto,Arial;min-height:100vh}
+    .container{width:100%;padding:3rem 4rem;box-sizing:border-box}
+    .card{background:#ffffff;padding:2rem;border-radius:16px;border:1px solid #e2e8f0;box-shadow:0 18px 36px rgba(148,163,184,0.2)}
+    .btn{background:linear-gradient(135deg,#f97316,#fbbf24);color:#111827;padding:.6rem 1rem;border-radius:10px;font-weight:700;border:1px solid #f59e0b;box-shadow:0 10px 24px rgba(249,115,22,0.2)}
+    .modal-bg{position:fixed;inset:0;background:rgba(15,23,42,.25);display:flex;align-items:center;justify-content:center;z-index:50}
+    .modal{background:#ffffff;padding:1.5rem;border-radius:14px;max-width:520px;width:90%;box-shadow:0 18px 46px rgba(148,163,184,0.26);border:1px solid #e2e8f0;position:relative}
+    .close-x{position:absolute;right:12px;top:10px;color:#94a3b8;cursor:pointer;font-weight:700}
+    @media (max-width:768px){ .container{padding:1rem} }
+  </style>
+</head>
+<body>
+  {% include '_navbar.html' %}
+  <div class="container">
+    <div class="card">
+      <div class="flex items-center justify-between mb-6">
+        <h2 class="text-2xl font-bold text-slate-900">BGMI</h2>
+        <div class="text-sm text-slate-500">Game page</div>
+      </div>
+      <p class="text-slate-600">The BGMI event page is under preparation. Details coming soon.</p>
+      <div class="mt-6">
+        <button id="openNotice" class="btn">Open Notice</button>
+        <button onclick="history.back()" class="btn ml-3" style="background:#e2e8f0;border-color:#e2e8f0;color:#0f172a;box-shadow:none">Back</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="comingModal" class="modal-bg" style="display:none">
+    <div class="modal relative">
+      <div class="close-x" id="closeModal">×</div>
+      <h3 class="text-xl font-semibold mb-2 text-slate-900">BGMI — Coming Soon</h3>
+      <p class="text-slate-600 mb-4">We're preparing the BGMI event page. Stay tuned for registration and updates.</p>
+      <div class="flex justify-end">
+        <button onclick="history.back()" class="btn mr-2" style="background:#e2e8f0;border-color:#e2e8f0;color:#0f172a;box-shadow:none">Back</button>
+        <button id="dismiss" class="btn" style="background:linear-gradient(135deg,#22c55e,#86efac);color:#0f172a;border-color:#34d399">Got it</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+  const modal = document.getElementById('comingModal');
+  const openBtn = document.getElementById('openNotice');
+  const dismiss = document.getElementById('dismiss');
+  const closeX = document.getElementById('closeModal');
+  function showModal(){ modal.style.display='flex'; document.body.style.overflow='hidden'; }
+  function hideModal(){ modal.style.display='none'; document.body.style.overflow='auto'; }
+  document.addEventListener('DOMContentLoaded', ()=>{ showModal(); });
+  openBtn && openBtn.addEventListener('click', showModal);
+  dismiss && dismiss.addEventListener('click', hideModal);
+  closeX && closeX.addEventListener('click', hideModal);
+  modal && modal.addEventListener('click', (e)=>{ if(e.target===modal) hideModal(); });
+</script>
+</body>
+</html>

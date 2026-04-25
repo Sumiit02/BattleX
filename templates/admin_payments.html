@@ -1,0 +1,70 @@
+{% extends 'admin_base.html' %}
+{% block title %}Admin - Payments{% endblock %}
+{% block content %}
+    <div class="max-w-6xl mx-auto pt-4 px-0">
+      <h1 class="text-2xl font-bold mb-4">Payments & Registrations</h1>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead class="text-left text-gray-400">
+            <tr>
+              <th class="p-2">ID</th>
+              <th class="p-2">User</th>
+              <th class="p-2">Mode</th>
+              <th class="p-2">Amount</th>
+              <th class="p-2">UPI</th>
+              <th class="p-2">Payer</th>
+              <th class="p-2">Txn</th>
+              <th class="p-2">Paid At</th>
+              <th class="p-2">Status</th>
+              <th class="p-2">Refund</th>
+              <th class="p-2">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in regs %}
+            <tr class="border-t border-gray-800">
+              <td class="p-2">{{ r.id }}</td>
+              <td class="p-2">{{ r.username }}</td>
+              <td class="p-2">{{ r.mode }}</td>
+              <td class="p-2">₹{{ r.amount }}</td>
+              <td class="p-2">{{ r.manual_upi or '-' }}</td>
+              <td class="p-2">{{ r.manual_payer_name or '-' }}</td>
+              <td class="p-2">{{ r.manual_txn_id or '-' }}</td>
+              <td class="p-2">{{ r.manual_paid_at or '-' }}</td>
+              <td class="p-2">{{ r.status }}</td>
+              <td class="p-2">{{ 'Requested' if r.refund_requested else ( 'Refunded' if r.refunded else 'None') }}</td>
+              <td class="p-2">
+                {% if not r.refunded %}
+                  <button data-id="{{ r.id }}" class="process-refund px-3 py-1 bg-green-600 rounded">Process Refund</button>
+                  <button data-id="{{ r.id }}" class="request-refund px-3 py-1 bg-yellow-600 rounded">Mark Request</button>
+                {% else %}
+                  <span class="text-gray-400">Done</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="11" class="p-4 text-gray-400">No registrations.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  async function postJson(url){ try{ const r = await fetch(url, { method:'POST' }); return await r.json(); }catch(e){ return { success:false, error:String(e) }; } }
+  document.querySelectorAll('.request-refund').forEach(btn => btn.addEventListener('click', async e => {
+    if(!confirm('Mark refund requested?')) return;
+    const id = e.target.dataset.id;
+    const res = await postJson('/admin/mark_refund_request/' + id);
+    if(res.success) location.reload(); else alert('Failed: ' + (res.error||'unknown'));
+  }));
+  document.querySelectorAll('.process-refund').forEach(btn => btn.addEventListener('click', async e => {
+    if(!confirm('Process refund now? This will mark refunded and reclaim slots.')) return;
+    const id = e.target.dataset.id;
+    const res = await postJson('/admin/process_refund/' + id);
+    if(res.success) location.reload(); else alert('Failed: ' + (res.error||'unknown'));
+  }));
+</script>
+{% endblock %}

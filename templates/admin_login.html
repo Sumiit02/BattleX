@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width,initial-scale=1" />
+        <title>Admin Login • BATTLE-X</title>
+        <script src="https://cdn.tailwindcss.com"></script>
+        <script src="https://kit.fontawesome.com/a2e0e6f4d6.js" crossorigin="anonymous"></script>
+        <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+        <style>
+            body {
+                font-family: 'Poppins', sans-serif;
+                background: #f8fafc;
+                color: #0f172a;
+            }
+            .gradient-panel {
+                background: linear-gradient(135deg, #ffedd5, #e0f2fe);
+            }
+        </style>
+</head>
+<body>
+    {% include '_navbar.html' %}
+    <div class="min-h-screen flex items-center justify-center px-4">
+        <div class="w-full max-w-5xl grid grid-cols-1 md:grid-cols-2 bg-white rounded-2xl overflow-hidden shadow-2xl border border-slate-200">
+            <!-- LEFT: INFO PANEL -->
+            <div class="gradient-panel p-10 flex flex-col justify-center text-slate-900">
+                <h2 class="text-4xl font-extrabold mb-2">Admin Portal</h2>
+                <p class="opacity-90 mb-6 text-lg">Login as <strong>Admin</strong> to manage tournaments, users, and results.</p>
+                <ul class="space-y-2 text-sm font-medium">
+                    <li>⚙️ Monitor all registrations and payments</li>
+                    <li>🛡️ Manage player data and results</li>
+                    <li>🔒 Secure admin access</li>
+                </ul>
+                <p class="mt-10 text-sm">
+                    <a href="{{ url_for('home') }}" class="font-semibold text-slate-900 underline">← Back to Home</a>
+                </p>
+            </div>
+            <!-- RIGHT: ADMIN LOGIN FORM -->
+            <div class="p-10 flex flex-col justify-center bg-white">
+                <h3 class="text-3xl font-semibold mb-6 text-orange-500">Admin Login</h3>
+                <div class="mb-6 text-sm">
+                    <span class="font-semibold text-orange-500">Admin Access Only</span>
+                </div>
+                <form method="POST" class="space-y-5">
+                    <input name="username" placeholder="Admin Username"
+                        class="w-full p-3 rounded-lg bg-white border border-slate-200 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                        required />
+                    <div class="relative">
+                        <input id="adminPassword" name="password" type="password" placeholder="Password"
+                            class="w-full p-3 pr-12 rounded-lg bg-white border border-slate-200 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                            required />
+                        <button id="adminPasswordToggle" type="button" aria-label="Show password" aria-pressed="false"
+                            class="absolute inset-y-0 right-3 my-auto h-8 w-8 flex items-center justify-center text-orange-500 hover:text-orange-600">
+                            <svg id="adminIconVisible" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                <path stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8"></path>
+                                <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"></circle>
+                            </svg>
+                            <svg id="adminIconHidden" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 hidden" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                <path stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M17.94 17.94A10.94 10.94 0 0 1 12 20C5 20 1 12 1 12a21.68 21.68 0 0 1 5.06-6.94"></path>
+                                <path stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M9.9 4.24A10.95 10.95 0 0 1 12 4c7 0 11 8 11 8a21.6 21.6 0 0 1-2.16 3.19"></path>
+                                <path stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M14.12 14.12a3 3 0 1 1-4.24-4.24"></path>
+                                <line x1="1" y1="1" x2="23" y2="23" stroke="currentColor" stroke-width="2" stroke-linecap="round"></line>
+                            </svg>
+                        </button>
+                    </div>
+                    <input name="admin_code" placeholder="Admin Access Code"
+                        class="w-full p-3 rounded-lg bg-white border border-slate-200 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                        required />
+                    <button type="submit"
+                        class="w-full py-3 rounded-lg bg-orange-500 hover:bg-orange-600 text-white font-semibold transition shadow-md">
+                        Log in as Admin
+                    </button>
+                </form>
+                <a href="{{ url_for('home') }}" class="text-sm text-slate-500 hover:text-orange-500 mt-6 inline-block">
+                    ← Back to Home
+                </a>
+            </div>
+        </div>
+    </div>
+    <script>
+        (function () {
+            const input = document.getElementById('adminPassword');
+            const toggle = document.getElementById('adminPasswordToggle');
+            const iconVisible = document.getElementById('adminIconVisible');
+            const iconHidden = document.getElementById('adminIconHidden');
+            if (!input || !toggle || !iconVisible || !iconHidden) return;
+
+            toggle.addEventListener('click', function () {
+                const shouldShow = input.type === 'password';
+                input.type = shouldShow ? 'text' : 'password';
+                iconVisible.classList.toggle('hidden', shouldShow);
+                iconHidden.classList.toggle('hidden', !shouldShow);
+                toggle.setAttribute('aria-label', shouldShow ? 'Hide password' : 'Show password');
+                toggle.setAttribute('aria-pressed', shouldShow ? 'true' : 'false');
+            });
+        })();
+    </script>
+</body>
+</html>

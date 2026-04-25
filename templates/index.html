@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BATTLE-X Tournament</title>
+
+  <!-- Google Font -->
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+
+  <!-- FontAwesome -->
+  <script src="https://kit.fontawesome.com/a2e0e6f4d6.js" crossorigin="anonymous"></script>
+
+  <!-- TailwindCSS for desktop layout utilities -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Animate.css for legacy desktop motion classes -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
+
+  <style>
+    body { font-family: 'Poppins', sans-serif; background: #f8fafc; color: #0f172a; margin: 0; }
+    a { color: inherit; }
+    /* Mobile shell */
+    .mobile-shell { max-width: 440px; margin: 0 auto; min-height: 100vh; padding: 18px 16px 90px; background: linear-gradient(180deg, #f8fafc 0%, #e2e8f0 100%); box-sizing: border-box; }
+    .mobile-hero { position: relative; border-radius: 22px; overflow: hidden; padding: 26px 18px 30px; background: radial-gradient(130% 120% at 10% 5%, rgba(255,247,237,0.9), rgba(238,242,255,0.9)), linear-gradient(140deg, #fff7ed 0%, #eef2ff 90%); border: 1px solid #e2e8f0; box-shadow: 0 16px 36px rgba(148,163,184,0.24); margin: 0 -16px 14px; }
+    .mobile-hero.minimal-hero { padding: 26px 18px 38px; background: linear-gradient(180deg, rgba(255,255,255,0.82) 0%, rgba(255,255,255,0.68) 32%, rgba(255,255,255,0.28) 70%, rgba(255,255,255,0.1) 100%), url('{{ url_for("static", filename="images/herosec1.webp") }}') center/cover no-repeat; border: none; box-shadow: 0 18px 36px rgba(15,23,42,0.16); border-radius: 18px; position: relative; min-height: 420px; display: flex; align-items: flex-start; }
+    .mobile-hero.minimal-hero img { display: none; }
+    .hero-copy-block { margin-top: 14px; display: grid; gap: 8px; }
+    .hero-copy-block .hero-title { margin: 0; font-size: 24px; line-height: 1.25; }
+    .hero-copy-block .hero-sub { margin: 0; }
+    .hero-sub-secondary { color: #1e293b; font-size: 14px; line-height: 1.5; margin: 0; }
+    .mobile-hero::before { content: ""; position: absolute; inset: 0; background: url('{{ url_for("static", filename="images/bg1.webp") }}') center/cover no-repeat; opacity: 0.06; filter: saturate(0.9); }
+    .mobile-hero::after { content: ""; position: absolute; inset: 0; background-image: radial-gradient(circle at 18% 12%, rgba(249,115,22,0.16) 0, rgba(249,115,22,0) 38%), radial-gradient(circle at 80% 10%, rgba(59,130,246,0.14) 0, rgba(59,130,246,0) 40%), linear-gradient(180deg, rgba(255,255,255,0.7) 0%, rgba(255,255,255,0.9) 100%); }
+    .mobile-hero-content { position: relative; z-index: 2; display: grid; gap: 14px; color: #0f172a; }
+    .hero-top { display: flex; align-items: center; justify-content: space-between; }
+    .mobile-brand { display: inline-flex; align-items: center; gap: 10px; font-weight: 800; color: #0f172a; background: rgba(255,255,255,0.85); padding: 8px 10px; border-radius: 14px; border: 1px solid rgba(226,232,240,0.9); box-shadow: 0 8px 20px rgba(148,163,184,0.22); }
+    .brand-dot { width: 40px; height: 40px; border-radius: 14px; background: linear-gradient(125deg,#f97316,#f43f5e,#8b5cf6); display: grid; place-items: center; box-shadow: 0 8px 20px rgba(0,0,0,0.14); color: #0b0b0b; }
+    .hero-grid { display: grid; grid-template-columns: repeat(1, minmax(0,1fr)); gap: 16px; align-items: end; }
+    .hero-title { font-size: 26px; font-weight: 900; margin: 4px 0 0; letter-spacing: -0.02em; color: #0f172a; line-height: 1.2; }
+    .hero-title .highlight { color: #f97316; }
+    .hero-sub { color: #334155; font-size: 14.5px; line-height: 1.6; margin: 4px 0 0; }
+    .hero-cta { display: inline-flex; align-items: center; gap: 10px; }
+    .primary-btn { display: inline-flex; align-items: center; justify-content: center; gap: 10px; padding: 12px 16px; background: linear-gradient(120deg,#f97316,#fbbf24); color: #0b0b0b; font-weight: 800; border-radius: 14px; text-decoration: none; border: none; box-shadow: 0 12px 30px rgba(249,115,22,0.26); width: fit-content; }
+    .btn-icon { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 9999px; background: #fff; color: #f97316; box-shadow: 0 6px 16px rgba(0,0,0,0.08); }
+    .hero-art { position: relative; display: flex; justify-content: center; }
+    .phone-card { position: relative; width: 220px; aspect-ratio: 9 / 16; border-radius: 24px; overflow: hidden; border: 1px solid rgba(226,232,240,0.9); box-shadow: 0 18px 38px rgba(15,23,42,0.12); background: #0f172a; }
+    .phone-card img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .phone-glow { position: absolute; inset: -14%; background: radial-gradient(circle at 50% 30%, rgba(249,115,22,0.3), rgba(255,255,255,0)); filter: blur(26px); z-index: 0; }
+    .hero-avatar { position: absolute; right: -18px; bottom: -10px; width: 130px; z-index: 2; }
+    .mobile-section { margin-top: 16px; }
+    .section-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+    .section-heading { font-size: 18px; font-weight: 800; color: #f97316; }
+    .match-card { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 14px; display: grid; gap: 8px; box-shadow: 0 12px 28px rgba(148,163,184,0.14); }
+    .match-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .match-title { font-weight: 700; font-size: 16px; color: #0f172a; }
+    .match-meta { font-size: 12px; color: #475569; }
+    .match-stats { display: flex; align-items: center; gap: 12px; font-size: 13px; color: #1f2937; }
+    .stat-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+    .join-btn { background: linear-gradient(120deg,#f97316,#fbbf24); color: #111827; font-weight: 800; border: none; border-radius: 12px; padding: 10px 14px; cursor: pointer; box-shadow: 0 8px 20px rgba(249,115,22,0.18); min-width: 74px; }
+    .view-all { width: 100%; background: #e2e8f0; color: #0f172a; border: 1px solid #cbd5e1; border-radius: 12px; padding: 12px; font-weight: 700; cursor: pointer; text-align: center; margin-top: 12px; box-shadow: none; }
+    .games-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 15px; }
+    .game-tile { position: relative; border-radius: 14px; overflow: hidden; border: 1px solid #e2e8f0; min-height: 120px; text-decoration: none; color: #0f172a; box-shadow: 0 10px 24px rgba(148,163,184,0.16); background-size: cover; background-position: center; }
+    .game-tile::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(255,255,255,0.08) 0%, rgba(15,23,42,0.65) 100%); z-index: 1; }
+    .game-tile .tile-label { position: absolute; bottom: 10px; left: 10px; right: 10px; z-index: 2; font-weight: 800; letter-spacing: 0.01em; color: #fff; }
+    .game-tile.coming-soon::before { content: ""; position: absolute; inset: 0; background: rgba(255,255,255,0.8); filter: saturate(0.6) brightness(0.95); z-index: 2; }
+    .game-tile .coming-flag { position: absolute; top: 10px; left: 10px; z-index: 3; padding: 6px 10px; background: rgba(15,23,42,0.85); color: #f8fafc; border-radius: 10px; font-size: 12px; font-weight: 700; letter-spacing: 0.02em; }
+    .game-tile .coming-label { position: absolute; bottom: 12px; left: 12px; z-index: 3; font-weight: 800; font-size: 13px; color: #0f172a; }
+    .bottom-nav { position: fixed; left: 0; right: 0; bottom: 0; max-width: 440px; margin: 0 auto; padding: 10px 18px 14px; background: rgba(255,255,255,0.9); border-top: 1px solid #e2e8f0; display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; box-shadow: 0 -8px 30px rgba(148,163,184,0.3); }
+    .nav-item { display: grid; justify-items: center; gap: 4px; color: #475569; font-size: 12px; text-decoration: none; }
+    .nav-item.active { color: #f97316; font-weight: 700; }
+    .nav-icon { width: 16px; height: 16px; }
+    .edge-band { margin: 22px -16px 0; padding: 18px 18px 20px; background: linear-gradient(120deg, rgba(249,115,22,0.08), rgba(59,130,246,0.08)); color: #0f172a; }
+    .edge-band h3 { margin: 0 0 8px; font-size: 20px; font-weight: 800; color: #0f172a; letter-spacing: -0.01em; }
+    .edge-band p { margin: 0; color: #1e293b; font-size: 14px; line-height: 1.55; }
+    .edge-band .band-points { display: grid; gap: 6px; margin-top: 10px; font-weight: 600; color: #0f172a; }
+    .edge-band .band-points span { display: inline-flex; align-items: center; gap: 8px; }
+    .edge-band .band-dot { width: 8px; height: 8px; border-radius: 999px; background: linear-gradient(120deg,#f97316,#fbbf24); }
+    /* Desktop content hidden on mobile */
+    .desktop-only { display: none; }
+    @media (min-width: 768px){
+      .mobile-shell, .bottom-nav { display: none; }
+      .desktop-only { display: block; }
+    }
+    /* Desktop styles (light theme) */
+    .hero-bg { background: linear-gradient(to right, rgba(255, 255, 255, 0.67), rgba(255, 255, 255, 0.49)), url('{{ url_for("static", filename="images/bg1.webp") }}') center/cover no-repeat; color: #0f172a; }
+    .counter-number { font-size: 2.5rem; font-weight: 700; color: #f97316; }
+    .discord-float { position: fixed; bottom: 25px; right: 25px; background-color: #5865F2; color: white; border-radius: 50%; padding: 16px; box-shadow: 0 0 15px #94a3b8; transition: all 0.3s ease; z-index: 50; }
+    .discord-float:hover { transform: scale(1.1); box-shadow: 0 0 25px #cbd5e1; }
+    .upcoming-banner { position: relative; overflow: hidden; border-radius: 28px; border: 1px solid #e2e8f0; background: radial-gradient(circle at top left, rgba(249,115,22,0.15), transparent 45%), radial-gradient(circle at bottom right, rgba(59,130,246,0.12), transparent 40%), #ffffff; box-shadow: 0 20px 60px rgba(148,163,184,0.25); }
+    .upcoming-banner::before, .upcoming-banner::after { content: ''; position: absolute; width: 280px; height: 280px; border-radius: 50%; filter: blur(60px); opacity: 0.35; animation: floatGlow 12s ease-in-out infinite; }
+    .upcoming-banner::before { top: -120px; left: -60px; background: rgba(249,115,22,0.4); }
+    .upcoming-banner::after { bottom: -140px; right: -80px; background: rgba(59,130,246,0.3); animation-delay: 4s; }
+    @keyframes floatGlow { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-15px); } }
+    .event-pill { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.35rem 0.85rem; border-radius: 9999px; background: #fff7ed; border: 1px solid #fed7aa; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.08em; color: #c2410c; }
+    .pulse-badge { position: relative; padding-left: 1.45rem; }
+    .pulse-badge::before { content: ''; position: absolute; left: 0.5rem; top: 50%; width: 6px; height: 6px; border-radius: 50%; background: #f97316; transform: translateY(-50%); box-shadow: 0 0 8px rgba(249,115,22,0.6); animation: pulse 1.4s infinite; }
+    @keyframes pulse { 0% { transform: translateY(-50%) scale(0.9); opacity: 0.8; } 70% { transform: translateY(-50%) scale(1.5); opacity: 0; } 100% { opacity: 0; } }
+    .event-card { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 20px; padding: 1.25rem; display: flex; justify-content: space-between; gap: 1rem; transition: transform 0.35s ease, border 0.35s ease, box-shadow 0.35s ease; box-shadow: 0 12px 32px rgba(148,163,184,0.2); }
+    .event-card:hover { transform: translateY(-6px); border-color: #f59e0b; box-shadow: 0 16px 40px rgba(249,115,22,0.18); }
+    .event-meta { font-size: 0.85rem; color: #475569; }
+    .event-cta { display: flex; flex-direction: column; justify-content: space-between; align-items: flex-end; text-align: right; }
+    .event-ticker-wrapper { position: relative; overflow: hidden; border-radius: 9999px; border: 1px solid #e2e8f0; background: #ffffff; display: none; }
+    .event-ticker { display: flex; gap: 2rem; padding: 0.9rem 1.5rem; animation: ticker 28s linear infinite; }
+    .ticker-item { display: inline-flex; align-items: center; gap: 0.75rem; font-size: 0.95rem; color: #f3f4f6; }
+    .ticker-item span { padding: 0.15rem 0.65rem; border-radius: 9999px; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; background: rgba(249,115,22,0.15); border: 1px solid rgba(249,115,22,0.45); }
+    @keyframes ticker { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+    .game-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(240px,1fr)); gap: 1.25rem; max-width: 1200px; margin: 0 auto; }
+    .game-card { position: relative; overflow: hidden; border-radius: 26px; border: 1px solid #e2e8f0; min-height: 360px; display: flex; flex-direction: column; text-decoration: none; color: #0f172a; background: #ffffff; box-shadow: 0 14px 36px rgba(148,163,184,0.22); }
+    .game-card::before { content: ''; position: absolute; inset: 0; background-image: var(--card-image); background-size: cover; background-position: center; filter: saturate(1.02); transition: transform .4s ease, filter .4s ease; z-index: 0; }
+    .game-card::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg,rgba(255,255,255,0.45),rgba(255, 255, 255, 0) 390%, rgba(255,255,255,1)); }
+    .game-card:hover::before { transform: scale(1.05); }
+    .game-card.coming-soon::before { filter: saturate(0.5) brightness(0.95); }
+    .coming-badge { position: absolute; top: 16px; right: 16px; z-index: 2; padding: 8px 12px; border-radius: 12px; background: rgba(15,23,42,0.8); color: #f8fafc; border: 1px solid #e2e8f0; font-weight: 800; letter-spacing: 0.02em; font-size: 12px; }
+    .card-overlay-note { position: absolute; bottom: 14px; right: 18px; z-index: 2; font-size: 12px; color: #475569; background: rgba(255,255,255,0.8); padding: 6px 10px; border-radius: 10px; border: 1px solid #e2e8f0; }
+    .game-card .game-card-body { position: relative; z-index: 2; margin-top: auto; padding: 1.5rem; display: flex; flex-direction: column; gap: 0.6rem; }
+    .game-chip { display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.15em; background: rgba(255,255,255,0.9); padding: 0.4rem 0.9rem; border-radius: 9999px; border: 1px solid #e2e8f0; color: #334155; }
+    .game-chip.featured { background: linear-gradient(120deg,#f97316,#fb7185,#8b5cf6); color: #050505; border: none; font-weight: 700; }
+    .game-card h3 { font-size: 1.6rem; font-weight: 700; color: #0f172a; }
+    .game-card p { color: #334155; font-size: 0.95rem; }
+    .game-cta { display: flex; justify-content: space-between; align-items: center; margin-top: 0.6rem; }
+    .game-cta strong { color: #f97316; letter-spacing: 0.05em; font-size: 0.9rem; text-transform: uppercase; }
+    .game-cta span { font-size: 0.85rem; color: #475569; }
+    .section-title { text-align: center; font-size: clamp(32px, 4vw, 48px); font-weight: 800; color: #ea580c; margin-bottom: 16px; }
+    .section-subtitle { text-align: center; color: #475569; max-width: 760px; margin: 0 auto 36px; line-height: 1.6; }
+    .content-grid { display: grid; gap: 32px; }
+    @media (min-width: 1024px) { .content-grid { grid-template-columns: 1.1fr 0.9fr; } }
+    .events-stack { display: grid; gap: 16px; }
+    .stats-grid { display: grid; gap: 28px; grid-template-columns: repeat(1, minmax(0,1fr)); max-width: 900px; margin: 0 auto; }
+    @media (min-width: 768px) { .stats-grid { grid-template-columns: repeat(3, minmax(0,1fr)); } }
+    .stat-card { text-align: center; }
+    .stat-number { font-size: 40px; font-weight: 700; color: #f97316; }
+    .testimonial-wrap { max-width: 760px; margin: 0 auto; }
+    .testimonial-text { transition: opacity 420ms ease, transform 420ms ease; opacity: 1; transform: translateY(0); }
+    .testimonial-text.fade-out { opacity: 0; transform: translateY(12px); }
+    .testimonial-text.fade-in { opacity: 1; transform: translateY(0); }
+    .testimonial-dots { display: flex; justify-content: center; gap: 0.75rem; margin-top: 1rem; }
+    .testimonial-dot { width: 10px; height: 10px; border-radius: 9999px; background: #9ca3af; cursor: pointer; }
+    .testimonial-dot.active { background: #f97316; box-shadow: 0 0 6px rgba(249,115,22,0.25); }
+    /* Extra info sections */
+    .info-grid { display: grid; gap: 18px; grid-template-columns: repeat(1, minmax(0,1fr)); max-width: 1100px; margin: 0 auto; padding: 0 24px; }
+    @media (min-width: 900px) { .info-grid { grid-template-columns: repeat(3, minmax(0,1fr)); } }
+    .info-card { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 18px; padding: 18px; box-shadow: 0 16px 40px rgba(148,163,184,0.18); }
+    .info-title { font-size: 18px; font-weight: 800; color: #f97316; margin-bottom: 6px; }
+    .info-text { color: #475569; font-size: 14px; line-height: 1.6; margin: 0; }
+    .cta-strip { max-width: 1100px; margin: 0 auto; padding: 24px; background: linear-gradient(120deg, #fff7ed, #f8fafc); border: 1px solid #e2e8f0; border-radius: 18px; display: grid; gap: 12px; text-align: center; box-shadow: 0 18px 46px rgba(148,163,184,0.2); }
+    .cta-strip h4 { font-size: 24px; font-weight: 800; margin: 0; color: #ea580c; }
+    .cta-strip p { margin: 0; color: #475569; }
+    .cta-strip .actions { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; }
+    .cta-strip .actions a { padding: 12px 16px; border-radius: 12px; font-weight: 800; text-decoration: none; }
+    .cta-primary { background: linear-gradient(120deg,#f97316,#fbbf24); color: #0b0b0b; box-shadow: 0 12px 32px rgba(249,115,22,0.25); }
+    .cta-secondary { border: 1px solid #e2e8f0; color: #0f172a; background: #ffffff; }
+    /* Footer layout (mobile only) */
+    .mobile-footer { background: transparent; color: #475569; border-top: 1px solid #e2e8f0; margin: 28px -16px 0; padding: 22px 16px 24px; border-radius: 0; box-shadow: none; display: grid; gap: 14px; }
+    .mobile-footer .brand-row { display: flex; align-items: center; gap: 12px; }
+    .mobile-footer .brand-mark { width: 42px; height: 42px; border-radius: 12px; background: linear-gradient(135deg,#f97316,#f43f5e,#8b5cf6); display: grid; place-items: center; color: #0b0b0b; font-weight: 900; }
+    .mobile-footer .brand-text { display: grid; gap: 4px; }
+    .mobile-footer .brand-title { font-weight: 800; color: #0f172a; font-size: 18px; letter-spacing: 0.01em; }
+    .mobile-footer .brand-sub { font-size: 13px; color: #475569; line-height: 1.4; margin: 0; }
+    .trust-row { display: flex; flex-wrap: wrap; gap: 10px; font-size: 12px; color: #1f2937; }
+    .trust-chip { display: inline-flex; align-items: center; gap: 6px; padding: 8px 10px; border-radius: 12px; background: #f8fafc; border: 1px solid #e2e8f0; }
+    .pay-row { display: flex; flex-wrap: wrap; gap: 10px; }
+    .pay-chip { display: inline-flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 12px; background: #fff7ed; border: 1px solid #fed7aa; font-weight: 700; color: #9a3412; font-size: 13px; }
+    .footer-columns { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 14px; }
+    .footer-col { display: grid; gap: 6px; }
+    .footer-title { font-weight: 800; color: #0f172a; letter-spacing: 0.04em; font-size: 12px; text-transform: uppercase; margin-bottom: 2px; }
+    .footer-link { color: #475569; text-decoration: none; font-size: 13px; display: inline-block; }
+    .footer-link:hover { color: #f97316; }
+    .footer-social { display: flex; gap: 12px; font-size: 18px; }
+    .footer-social a { color: #475569; text-decoration: none; }
+    .footer-social a:hover { color: #f97316; }
+    .legal { margin-top: 6px; font-size: 11.5px; color: #475569; display: flex; flex-wrap: wrap; gap: 10px; }
+    .footer-nav-row { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; color: #475569; border-top: 1px solid #e2e8f0; padding-top: 10px; }
+    @media (min-width: 768px){ .mobile-footer { display: none; } }
+
+    /* Lightened mobile-only tweaks */
+    @media (max-width: 767px){
+      body { background: #f3f4f6; color: #0f172a; }
+      .mobile-shell { background: linear-gradient(180deg, #f8fafc 0%, #e5e7eb 100%); padding-top: 0; }
+      .mobile-hero { margin: 0 -16px 14px; border-radius: 0; border: none; box-shadow: none; padding: 26px 18px 30px; background: linear-gradient(140deg, #fff7ed 0%, #eef2ff 100%); }
+      .mobile-hero::before { opacity: 0.08; filter: saturate(0.9); }
+      .mobile-hero::after { background: linear-gradient(180deg, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0.8) 100%); }
+      .mobile-hero-content { color: #0f172a; }
+      .mobile-brand { color: #0f172a; }
+      .hero-title { color: #0f172a; }
+      .hero-sub { color: #334155; }
+      .primary-btn { background: linear-gradient(120deg,#f97316,#fbbf24); color: #111827; box-shadow: 0 10px 24px rgba(249,115,22,0.25); }
+      .section-heading { color: #f97316; }
+      .match-card { background: rgba(255,255,255,0.9); color: #0f172a; border: 1px solid rgba(15,23,42,0.08); box-shadow: 0 12px 28px rgba(15,23,42,0.08); }
+      .match-title { color: #0f172a; }
+      .match-meta { color: #475569; }
+      .match-stats { color: #1f2937; }
+      .join-btn { color: #111827; }
+      .view-all { background: #e2e8f0; color: #0f172a; border: 1px solid #cbd5e1; box-shadow: none; }
+      .mobile-section { margin-top: 16px; }
+    }
+  </style>
+</head>
+<body class="overflow-x-hidden">
+
+  {% include '_navbar.html' %}
+
+  {% set acct = session.get('display_name') or session.get('user') or None %}
+
+  {% set game_cards = [
+    {
+      'url': url_for('freefire'),
+      'img': url_for('static', filename='images/freefire.webp'),
+      'title': 'Free Fire',
+      'subtitle': 'Battle Royale • Rush',
+      'tag': 'Featured Drop',
+      'featured': True,
+      'coming_soon': False,
+      'description': 'High-tempo qualifiers tuned ; perfect for squads grinding daily tickets.',
+      'prize': 'Daily pot ₹5K+',
+      'cta': 'Enter lobby'
+    },
+    {
+      'url': url_for('bgmi'),
+      'img': url_for('static', filename='images/pubg.webp'),
+      'title': 'BGMI',
+      'subtitle': 'Battle Royale • Tactical',
+      'tag': 'Classic Grounds',
+      'featured': False,
+      'coming_soon': True,
+      'description': '3-map rotations with analyst desk recaps and verified adjudication.',
+      'prize': 'Launching soon',
+      'cta': 'Coming soon'
+    },
+    {
+      'url': url_for('valorant'),
+      'img': url_for('static', filename='images/valorant.webp'),
+      'title': 'Valorant',
+      'subtitle': '5v5 • Premier Rules',
+      'tag': 'PC Arena',
+      'featured': False,
+      'coming_soon': True,
+      'description': 'Agent-locked brackets with observer cams, tactical pauses, and stat exports.',
+      'prize': 'Launching soon',
+      'cta': 'Coming soon'
+    },
+    {
+      'url': url_for('smashkart'),
+      'img': url_for('static', filename='images/smashkart.webp'),
+      'title': 'Smash Kart',
+      'subtitle': 'Arcade • Solo Sprint',
+      'tag': 'Community Pick',
+      'featured': False,
+      'coming_soon': True,
+      'description': 'Momentum-heavy time trials with live casters and highlight reels.',
+      'prize': 'Launching soon',
+      'cta': 'Coming soon'
+    }
+  ] %}
+
+  <!-- Mobile-first shell -->
+  <div class="mobile-shell">
+    <section class="mobile-hero minimal-hero">
+      <div class="mobile-hero-content">
+        <h1 class="hero-title">Battle-X esports, built for <span class="highlight">Players</span></h1>
+        <p class="hero-sub">Pick your title, claim a slot, and get match-ready in under 30 seconds.</p>
+        <p class="hero-sub-secondary">Secure payouts, anti-cheat checks, and instant match briefs built for mobile squads and Daily Tournament with Prize pool.</p>
+        <div class="hero-cta">
+          <a class="primary-btn" href="{{ url_for('freefire') if acct else url_for('signup') }}">
+            
+            <span>Register Now</span>
+          </a>
+        </div>
+      </div>
+    </section>
+
+   <section class="mobile-section" style="
+  margin-top: 16px;
+  margin-bottom: 16px;
+  padding: 20px 0;
+">
+  <div style="
+    margin: 0 -4px;
+    padding: 16px 12px;
+    display: grid;
+    gap: 14px;
+    color: #0f172a;
+  ">
+    
+    <!-- Headline -->
+    <p style="
+      margin: 0;
+      font-weight: 800;
+      font-size: 1.05rem;
+      letter-spacing: -0.015em;
+    ">
+      Pick a title. Claim a slot. Launch.
+    </p>
+
+    <!-- Primary description -->
+    <p style="
+      margin: 0;
+      color: #1e293b;
+      line-height: 1.65;
+      font-size: 0.95rem;
+    ">
+      Mobile-first rooms with instant joins, seamless check-ins, and payouts designed to keep tournaments running without delays.
+    </p>
+
+    <!-- Supporting trust line -->
+    <p style="
+      margin: 0;
+      color: #475569;
+      font-size: 0.85rem;
+      line-height: 1.6;
+    ">
+      Built for organizers who value speed, fairness, and transparency—whether it’s a quick scrim or a full-scale event.
+    </p>
+
+    <!-- Feature chips -->
+    <div style="
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 6px;
+      font-weight: 700;
+      font-size: 0.8rem;
+      color: #f97316;
+    ">
+      <span>⚡ Fast check-ins</span>
+      <span>🛡 Verified lobbies</span>
+      <span> Fairplay reviews</span>
+      <span> UPI payouts just after Match</span>
+    </div>
+
+  </div>
+</section>
+
+
+    <section class="mobile-section">
+      <div class="section-row">
+        <span class="section-heading">Live matches</span>
+        <span class="match-meta">{{ (upcoming_events|length) if upcoming_events else 0 }} open</span>
+      </div>
+      {% if upcoming_events %}
+        {% for event in upcoming_events[:3] %}
+        <div class="match-card">
+          <div class="match-header">
+            <div>
+              <div class="match-title">{{ event.title }}</div>
+              <div class="match-meta">{{ event.schedule_label }} • {{ event.mode }}</div>
+            </div>
+            <button class="join-btn" onclick="location.href='{{ event.register_url }}'">Join</button>
+          </div>
+          <div class="match-stats">
+            <span><span class="stat-dot" style="background:#22c55e"></span>{{ event.status }}</span>
+            <span><span class="stat-dot" style="background:#f59e0b"></span>{{ event.capacity_label }}</span>
+            <span><span class="stat-dot" style="background:#38bdf8"></span>{{ event.prize_label }}</span>
+          </div>
+        </div>
+        {% endfor %}
+        <button class="view-all" onclick="location.href='{{ url_for('freefire') }}'">View all events</button>
+      {% else %}
+        <div class="match-card">
+          <div class="match-title">No live drops right now</div>
+          <div class="match-meta">Check back in a bit—new rooms open soon.</div>
+        </div>
+      {% endif %}
+    </section>
+
+    <section class="mobile-section" id="games-mobile">
+      <div class="section-row">
+        <span class="section-heading">Choose your game</span>
+        <span class="match-meta">Swipe to enter</span>
+      </div>
+      <div class="games-row">
+        {% for g in game_cards %}
+        <a class="game-tile {{ 'coming-soon' if g.coming_soon else '' }}" href="{{ g.url }}" style="background-image:url('{{ g.img }}')">
+          {% if g.coming_soon %}
+            <span class="coming-flag">Coming soon</span>
+            <span class="coming-label">{{ g.title }}</span>
+          {% else %}
+            <span class="tile-label">{{ g.title }} • {{ g.subtitle }}</span>
+          {% endif %}
+        </a>
+        {% endfor %}
+      </div>
+    </section>
+
+    <section class="mobile-section">
+      <div class="section-row" style="margin-bottom:6px;">
+        <span class="section-heading">Why players stay</span>
+      </div>
+      <div class="stats-stack" style="display:grid;gap:10px;">
+        <div class="match-card" style="display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <div class="match-title">1000+ players</div>
+            <div class="match-meta">Registered squads and solos</div>
+          </div>
+          <div class="match-meta">Growing daily</div>
+        </div>
+        <div class="match-card" style="display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <div class="match-title">₹1 Lakh+</div>
+            <div class="match-meta">Total prize pools</div>
+          </div>
+          <div class="match-meta">Fast payouts</div>
+        </div>
+        <div class="match-card" style="display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <div class="match-title">120+ finals</div>
+            <div class="match-meta">Completed brackets </div>
+          </div>
+          <div class="match-meta">Verified</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="edge-band">
+      <h3>Built to launch quickly</h3>
+      <p>Edge-to-edge ops for squads that want to lock slots, sync lobbies, and get payouts without waiting.</p>
+      <div class="band-points">
+        <span><span class="band-dot"></span>Auto room codes + slot locks</span>
+        <span><span class="band-dot"></span>Anti-cheat checks baked into tickets</span>
+        <span><span class="band-dot"></span>UPI payouts with live status</span>
+      </div>
+    </section>
+
+    <footer class="mobile-footer">
+      <a href="/terms-and-conditions">Terms & Conditions</a>
+      <div class="legal" style="margin-top: 2px;">
+        <a href="/privacy-policy">Privacy Policy</a>
+        <a href="/refund-and-cancellation-policy">Refund &amp; Cancellation Policy</a>
+        <a href="/contact-us">Contact Us</a>
+        <a href="/about-us">About Us</a>
+        <a href="/faq">FAQ</a>
+      </div>
+      <div class="brand-row">
+        
+        <div class="brand-text">
+          <div class="brand-title">BATTLE-X</div>
+          <p class="brand-sub">Next-gen esports tournaments. Fair play, fast payouts, mobile-first ops.</p>
+        </div>
+      </div>
+
+      <div class="trust-row">
+        <span class="trust-chip"> Secure payments</span>
+        <span class="trust-chip"> Anti-cheat</span>
+        <span class="trust-chip"> Instant payouts</span>
+      </div>
+
+      
+
+      <div class="footer-columns">
+        <div class="footer-col">
+          <div class="footer-title">Games</div>
+          <a class="footer-link" href="{{ url_for('freefire') }}">Free Fire (Live)</a>
+          <a class="footer-link" href="{{ url_for('bgmi') }}">BGMI (Coming soon)</a>
+          <a class="footer-link" href="{{ url_for('valorant') }}">Valorant (Coming soon)</a>
+          <a class="footer-link" href="{{ url_for('smashkart') }}">Smash Kart (Coming soon)</a>
+        </div>
+        <div class="footer-col">
+          <div class="footer-title">Tournaments</div>
+          <a class="footer-link" href="#">Ongoing matches</a>
+          <a class="footer-link" href="#">Upcoming events</a>
+          <a class="footer-link" href="#">How to join</a>
+          <a class="footer-link" href="#">Prize distribution</a>
+        </div>
+        <div class="footer-col">
+          <div class="footer-title">Support</div>
+          <a class="footer-link" href="{{ url_for('login') }}">Open ticket</a>
+          <a class="footer-link" href="#">Help center</a>
+          <a class="footer-link" href="#">FAQs</a>
+          <a class="footer-link" href="#">Rules & format</a>
+        </div>
+        <div class="footer-col">
+          <div class="footer-title">Community</div>
+          <a class="footer-link" href="#">Discord</a>
+          <a class="footer-link" href="#">Instagram</a>
+          <a class="footer-link" href="#">YouTube</a>
+          <a class="footer-link" href="#">Twitter</a>
+        </div>
+      </div>
+
+      <div class="legal">
+        <span>© 2025 BATTLE-X</span>
+        <a href="/terms-and-conditions">Terms &amp; Conditions</a>
+        <a href="/privacy-policy">Privacy Policy</a>
+        <a href="/refund-and-cancellation-policy">Refund &amp; Cancellation Policy</a>
+        <a href="/contact-us">Contact Us</a>
+        <a href="/about-us">About Us</a>
+        <a href="/faq">FAQ</a>
+      </div>
+
+      <div class="footer-nav-row">
+        <a class="footer-link" href="#">Ongoing matches</a>
+        <a class="footer-link" href="#">Upcoming events</a>
+        <a class="footer-link" href="#">How to join</a>
+        <a class="footer-link" href="#">FAQs</a>
+      </div>
+    </footer>
+  </div>
+
+  <div class="bottom-nav">
+    <a class="nav-item active" href="#"><i class="fa-solid fa-house nav-icon"></i><span>Home</span></a>
+    <a class="nav-item" href="#games-mobile"><i class="fa-solid fa-gamepad nav-icon"></i><span>Games</span></a>
+    <a class="nav-item" href="{{ url_for('freefire') }}"><i class="fa-solid fa-bolt nav-icon"></i><span>Events</span></a>
+    <a class="nav-item" href="{{ url_for('login') }}"><i class="fa-solid fa-user nav-icon"></i><span>Account</span></a>
+  </div>
+
+  <div class="desktop-only">
+
+  <!-- Hero Section -->
+  <header class="hero-bg h-[95vh] flex flex-col justify-center items-center text-center px-4">
+    <h2 class="text-5xl md:text-6xl font-bold text-orange-500 mb-4 animate__animated animate__fadeInDown">
+      Welcome to BATTLE-X
+    </h2>
+    <p class="text-lg md:text-2xl max-w-2xl animate__animated animate__fadeInUp mb-6 text-slate-700">
+      Join Free Fire and BGMI competitions. Compete, win, and climb the leaderboard!
+    </p>
+    <div class="flex gap-4 animate__animated animate__bounceIn">
+      <a href="{{ url_for('signup') }}" class="px-8 py-3 bg-orange-500 text-white rounded-full font-semibold hover:bg-orange-600 transition">
+        Get Started
+      </a>
+      <a href="#games" class="px-8 py-3 border border-orange-500 text-slate-800 rounded-full font-semibold hover:bg-orange-500 hover:text-white transition">
+        Explore Games
+      </a>
+    </div>
+  </header>
+
+  {% if upcoming_events %}
+  <!-- Free Fire Upcoming Events Banner -->
+  <section class="py-16 px-6 bg-slate-50" data-aos="fade-up">
+    {% set spotlight = upcoming_events[0] %}
+    <div class="upcoming-banner px-6 py-10 md:px-12 md:py-14">
+      <div class="relative z-10 grid gap-10 lg:grid-cols-[1.1fr_0.9fr]">
+        <div>
+          <div class="flex flex-wrap items-center gap-3 mb-6">
+            <span class="event-pill pulse-badge">Free Fire</span>
+            <span class="event-pill"><i class="fa-solid fa-bolt"></i> Upcoming</span>
+          </div>
+          <p class="text-sm uppercase tracking-[0.4em] text-slate-500 mb-4">BATTLE-X Spotlight</p>
+          <h3 class="text-3xl md:text-4xl font-extrabold text-slate-900 leading-tight mb-4">{{ spotlight.title }}</h3>
+          <p class="text-lg text-slate-700 max-w-2xl mb-6">{{ spotlight.theme_label }}</p>
+          <div class="flex flex-wrap gap-4 mb-8">
+            <div class="bg-white border border-slate-200 rounded-2xl px-5 py-3 shadow-sm">
+              <p class="text-xs uppercase tracking-wide text-slate-500">Prize Pool</p>
+              <p class="text-2xl font-bold text-orange-500">{{ spotlight.prize_label }}</p>
+            </div>
+            <div class="bg-white border border-slate-200 rounded-2xl px-5 py-3 shadow-sm">
+              <p class="text-xs uppercase tracking-wide text-slate-500">Capacity</p>
+              <p class="text-2xl font-bold text-sky-600">{{ spotlight.capacity_label }}</p>
+            </div>
+          </div>
+          <div class="flex flex-wrap gap-4">
+            <a href="{{ spotlight.register_url }}" class="px-8 py-3 rounded-full font-semibold bg-gradient-to-r from-orange-500 via-pink-500 to-purple-600 text-white shadow-lg shadow-orange-500/30 hover:scale-[1.02] transition">Reserve Slot</a>
+            <a href="{{ url_for('freefire') }}" class="px-8 py-3 rounded-full border border-slate-200 font-semibold text-slate-800 hover:bg-slate-100 transition">View Lobby</a>
+          </div>
+        </div>
+
+        <div class="space-y-4">
+          {% for event in upcoming_events %}
+          <div class="event-card">
+            <div>
+              <p class="text-sm uppercase tracking-[0.2em] text-slate-500 mb-1">{{ event.mode }} • {{ event.capacity_label }}</p>
+              <strong class="text-slate-900">{{ event.title }}</strong>
+              <p class="text-sm text-slate-600 mt-1">{{ event.theme_label }}</p>
+              <p class="event-meta mt-3 text-slate-600">
+                <span><i class="fa-solid fa-calendar"></i> {{ event.schedule_label }}</span>
+                <span><i class="fa-solid fa-trophy"></i> {{ event.prize_label }}</span>
+              </p>
+            </div>
+            <div class="event-cta">
+              <span class="event-pill text-[11px] uppercase tracking-[0.3em] bg-white border border-amber-200">{{ event.status }}</span>
+              <a href="{{ event.register_url }}" class="text-orange-500 hover:text-orange-600 transition flex items-center gap-2 mt-3">Register <i class="fa-solid fa-arrow-right"></i></a>
+              <span class="text-xs uppercase tracking-widest text-slate-500 mt-4">{{ event.slots_summary }}
+                <i class="fa-solid fa-circle text-[6px] text-green-500 ml-1"></i>
+              </span>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+
+    </div>
+  </section>
+  {% endif %}
+
+  <!-- Games Section -->
+  <section id="games" class="py-20 bg-gradient-to-b from-slate-50 to-slate-100">
+    <h2 class="text-center text-4xl md:text-5xl font-extrabold text-orange-500" data-aos="fade-down">Choose Your Game</h2>
+    <p class="text-center text-slate-600 mt-4 mb-12 max-w-3xl mx-auto" data-aos="fade-up">Pick a circuit and drop straight into curated tournaments with verified lobbies, studio-grade observing, and prize pools that refresh every week.</p>
+
+    <div class="game-grid px-6" data-aos="fade-up">
+      {% for g in game_cards %}
+      <a class="game-card {{ 'game-card-featured' if g.featured else '' }} {{ 'coming-soon' if g.coming_soon else '' }}" href="{{ g.url }}" style="--card-image:url('{{ g.img }}')">
+        {% if g.coming_soon %}<span class="coming-badge">Coming soon</span>{% endif %}
+        <span class="game-chip {{ 'featured' if g.featured else '' }}">{{ g.tag }}</span>
+        <div class="game-card-body">
+          <span class="text-xs tracking-[0.35em] uppercase text-gray-400">{{ g.subtitle }}</span>
+          <h3>{{ g.title }}</h3>
+          <p>{{ g.description }}</p>
+          <div class="game-cta">
+            <strong>{{ g.prize }}</strong>
+            <span>{{ g.cta }} {% if not g.coming_soon %}<i class="fa-solid fa-arrow-up-right-from-square"></i>{% else %}<i class="fa-solid fa-clock"></i>{% endif %}</span>
+          </div>
+        </div>
+        {% if g.coming_soon %}<span class="card-overlay-note">Lobby opens soon</span>{% endif %}
+      </a>
+      {% endfor %}
+    </div>
+  </section>
+
+  <!-- Stats Section -->
+  <section class="py-20 bg-white text-center" data-aos="fade-up">
+    <h3 class="text-3xl font-bold text-orange-500 mb-10">BATTLE-X Stats</h3>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-10 max-w-4xl mx-auto">
+      <div>
+        <div class="counter-number" data-target="5000">0</div>
+        <p class="text-slate-600">Registered Players</p>
+      </div>
+      <div>
+        <div class="counter-number" data-target="120">0</div>
+        <p class="text-slate-600">Tournaments Completed</p>
+      </div>
+      <div>
+        <div class="counter-number" data-target="250000">0</div>
+        <p class="text-slate-600">Total Prize Pool (₹)</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Testimonials -->
+  <section class="py-20 bg-gradient-to-b from-slate-100 to-white text-center">
+    <h3 class="text-3xl font-bold text-orange-500 mb-12" data-aos="fade-down">What Players Say</h3>
+    <div class="max-w-4xl mx-auto relative">
+      <div id="testimonialCarousel" class="text-lg italic text-slate-700 testimonial-text">“BATTLE-X tournaments are the best! Fast, fair, and fun!”</div>
+      <div class="testimonial-dots">
+        <button class="testimonial-dot active" onclick="changeTestimonial(0)"></button>
+        <button class="testimonial-dot" onclick="changeTestimonial(1)"></button>
+        <button class="testimonial-dot" onclick="changeTestimonial(2)"></button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Operations Snapshot -->
+  <section class="py-16 bg-slate-50 text-center">
+    <h3 class="text-3xl font-bold text-orange-500 mb-5">How we run brackets</h3>
+    <p class="text-slate-600 max-w-3xl mx-auto mb-10">Referees, anti-cheat, and payouts are wired for mobile squads. Here is the fast lane.</p>
+    <div class="info-grid">
+      <div class="info-card">
+        <div class="info-title">Instant check-ins</div>
+        <p class="info-text">Auto-room codes and slot locks 5 minutes before match start so lobbies launch on time.</p>
+      </div>
+      <div class="info-card">
+        <div class="info-title">Fairplay stack</div>
+        <p class="info-text">Replay requests, POV capture prompts, and ban reviews inside the same match ticket.</p>
+      </div>
+      <div class="info-card">
+        <div class="info-title">Payout clarity</div>
+        <p class="info-text">UPI-first payouts with status tracking and automated prize splits for squads.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Support & Help -->
+  <section class="py-16 bg-gradient-to-b from-slate-50 to-white text-center">
+    <h3 class="text-3xl font-bold text-orange-500 mb-5">Need help?</h3>
+    <p class="text-slate-600 max-w-3xl mx-auto mb-10">Player support is staffed during match windows. Raise a ticket or hop into Discord for faster resolutions.</p>
+    <div class="cta-strip">
+      <h4>We respond inside 10 minutes during live brackets</h4>
+      <p>Ticket a dispute, request a slot swap, or ask for caster coverage.</p>
+      <div class="actions">
+        <a class="cta-primary" href="{{ url_for('login') }}">Open support ticket</a>
+        <a class="cta-secondary" href="#">Join Discord</a>
+        <a class="cta-secondary" href="/terms-and-conditions">Terms &amp; Conditions</a>
+        <a class="cta-secondary" href="/privacy-policy">Privacy Policy</a>
+        <a class="cta-secondary" href="/refund-and-cancellation-policy">Refund &amp; Cancellation</a>
+        <a class="cta-secondary" href="/contact-us">Contact Us</a>
+        <a class="cta-secondary" href="/about-us">About Us</a>
+        <a class="cta-secondary" href="/faq">FAQ</a>
+      </div>
+    </div>
+  </section>
+
+  </div> <!-- end desktop-only -->
+
+  <!-- JS -->
+  <script>
+    // Counter animation
+    const counters = document.querySelectorAll('.counter-number');
+    counters.forEach(counter => {
+      const target = +counter.dataset.target;
+      const speed = 100;
+      const updateCount = () => {
+        const count = +counter.innerText.replace(/,/g,'');
+        const inc = target / speed;
+        if(count < target) {
+          counter.innerText = Math.ceil(count + inc).toLocaleString();
+          setTimeout(updateCount, 20);
+        } else counter.innerText = target.toLocaleString();
+      };
+      updateCount();
+    });
+
+    // Testimonials
+    const testimonials = [
+      "“BATTLE-X tournaments are the best! Fast, fair, and fun!”",
+      "“Won my first prize here — awesome experience!”",
+      "“Smooth registration, amazing community, 10/10.”"
+    ];
+    let currentTestimonial = 0;
+    function changeTestimonial(i) {
+      if (i === currentTestimonial) return;
+      const el = document.getElementById('testimonialCarousel');
+      const prev = currentTestimonial;
+      currentTestimonial = i;
+      // Fade out
+      el.classList.add('fade-out');
+      // Update dots
+      const dots = document.querySelectorAll('.testimonial-dot');
+      dots.forEach((d, idx) => d.classList.toggle('active', idx === i));
+      setTimeout(() => {
+        // swap text and fade in
+        el.innerText = testimonials[i];
+        el.classList.remove('fade-out');
+        el.classList.add('fade-in');
+        // remove fade-in class after transition so class toggles next time
+        setTimeout(() => el.classList.remove('fade-in'), 480);
+      }, 220);
+    }
+
+  </script>
+</body>
+
+</html>

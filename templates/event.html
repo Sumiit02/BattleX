@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Edit Event • BATTLE-X Admin</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 text-white min-h-screen">
+  {% include '_navbar.html' %}
+  <div class="max-w-3xl mx-auto pt-24 px-4">
+    <div class="bg-gray-800 p-6 rounded">
+      <h1 class="text-xl font-bold mb-4">Edit Tournament</h1>
+      <form method="post">
+        <div class="grid gap-3">
+          <label class="text-sm">Title
+            <div class="text-xs text-gray-400">Last changed: {{ event.field_updates.title if event.field_updates and event.field_updates.title else 'never' }}</div>
+            <input name="title" value="{{ event.title }}" class="w-full p-2 bg-gray-900 rounded mt-1" required/>
+          </label>
+          <label class="text-sm">Slug<input name="slug" value="{{ event.slug }}" class="w-full p-2 bg-gray-900 rounded mt-1"/></label>
+          <label class="text-sm">Mode
+            <select name="mode" class="w-full p-2 bg-gray-900 rounded mt-1">
+              <option value="BR" {% if event.mode and 'BR' in event.mode %}selected{% endif %}>BR (Battle Royale)</option>
+              <option value="CS" {% if event.mode and 'CS' in event.mode %}selected{% endif %}>CS (Clash Squad)</option>
+              <option value="custom" {% if event.mode and event.mode not in ['BR','CS'] %}selected{% endif %}>Custom</option>
+            </select>
+          </label>
+          <label class="text-sm">Date
+            <div class="text-xs text-gray-400">Last changed: {{ event.field_updates.date if event.field_updates and event.field_updates.date else 'never' }}</div>
+            <input name="date" value="{{ event.date }}" class="w-full p-2 bg-gray-900 rounded mt-1"/>
+          </label>
+          <div class="grid grid-cols-2 gap-3">
+            <label class="text-sm">Start Time
+              <div class="text-xs text-gray-400">Last changed: {{ event.field_updates.start_time if event.field_updates and event.field_updates.start_time else 'never' }}</div>
+              <input name="start_time" value="{{ event.start_time or '' }}" placeholder="YYYY-MM-DDTHH:MM:SS" class="w-full p-2 bg-gray-900 rounded mt-1"/>
+            </label>
+            <label class="text-sm">End Time
+              <div class="text-xs text-gray-400">Last changed: {{ event.field_updates.end_time if event.field_updates and event.field_updates.end_time else 'never' }}</div>
+              <input name="end_time" value="{{ event.end_time or '' }}" placeholder="YYYY-MM-DDTHH:MM:SS" class="w-full p-2 bg-gray-900 rounded mt-1"/>
+            </label>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <label class="text-sm">Entry Fee (₹)
+              <div class="text-xs text-gray-400">Last changed: {{ event.field_updates.entry_fee if event.field_updates and event.field_updates.entry_fee else 'never' }}</div>
+              <input name="entry_fee" type="number" value="{{ event.entry_fee or 0 }}" class="w-full p-2 bg-gray-900 rounded mt-1"/>
+            </label>
+            <label class="text-sm">Prize Pool
+              <div class="text-xs text-gray-400">Last changed: {{ event.field_updates.prize_pool if event.field_updates and event.field_updates.prize_pool else 'never' }}</div>
+              <input name="prize_pool" value="{{ event.prize_pool or '' }}" class="w-full p-2 bg-gray-900 rounded mt-1"/>
+            </label>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <label class="text-sm">Max Slots
+              <div class="text-xs text-gray-400">Last changed: {{ event.field_updates.max_slots if event.field_updates and event.field_updates.max_slots else 'never' }}</div>
+              <input name="max_slots" type="number" value="{{ event.max_slots }}" class="w-full p-2 bg-gray-900 rounded mt-1"/>
+            </label>
+            <label class="text-sm">Slots Left
+              <div class="text-xs text-gray-400">Last changed: {{ event.field_updates.slots_left if event.field_updates and event.field_updates.slots_left else 'never' }}</div>
+              <input name="slots_left" type="number" value="{{ event.slots_left }}" class="w-full p-2 bg-gray-900 rounded mt-1"/>
+            </label>
+          </div>
+          <label class="text-sm">Description
+            <div class="text-xs text-gray-400">Last changed: {{ event.field_updates.description if event.field_updates and event.field_updates.description else 'never' }}</div>
+            <textarea name="description" class="w-full p-2 bg-gray-900 rounded mt-1">{{ event.description or '' }}</textarea>
+          </label>
+          <label class="text-sm">Image Path
+            <div class="text-xs text-gray-400">Last changed: {{ event.field_updates.image if event.field_updates and event.field_updates.image else 'never' }}</div>
+            <input name="image" value="{{ event.image or '' }}" class="w-full p-2 bg-gray-900 rounded mt-1"/>
+          </label>
+          <label class="flex items-center gap-2">
+            <input type="checkbox" name="is_open" {{ 'checked' if event.is_open else '' }}/> Open
+            <div class="text-xs text-gray-400 ml-2">Last changed: {{ event.field_updates.is_open if event.field_updates and event.field_updates.is_open else 'never' }}</div>
+          </label>
+        </div>
+        <div class="mt-4 flex gap-3">
+            <button id="saveBtn" type="button" class="px-4 py-2 bg-orange-500 rounded">Save</button>
+          <a href="{{ url_for('admin_events') }}" class="px-4 py-2 bg-gray-700 rounded">Back</a>
+        </div>
+      </form>
+    </div>
+  </div>
+    <script>
+      const saveBtn = document.getElementById('saveBtn');
+      saveBtn.addEventListener('click', async () => {
+        const form = document.querySelector('form');
+        const fd = new FormData(form);
+        const payload = {};
+        fd.forEach((v,k)=> payload[k]=v);
+        // include checkbox is_open properly
+        payload['is_open'] = form.querySelector('input[name=is_open]') && form.querySelector('input[name=is_open]').checked ? 'on' : '';
+        try{
+          saveBtn.disabled = true; saveBtn.textContent = 'Saving...';
+          const res = await fetch(window.location.pathname, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload)});
+          const j = await res.json();
+          if(j.success){
+            // update timestamps shown on page
+            const fu = j.field_updates || {};
+            for(const k in fu){
+              const el = document.querySelector(`[data-updated="${k}"]`);
+              if(el) el.textContent = fu[k];
+            }
+            saveBtn.textContent = 'Saved';
+            setTimeout(()=>{ saveBtn.disabled=false; saveBtn.textContent='Save'; }, 900);
+          } else {
+            alert('Save failed: '+(j.error||'unknown'));
+            saveBtn.disabled=false; saveBtn.textContent='Save';
+          }
+        }catch(e){ alert('Save error: '+e.message); saveBtn.disabled=false; saveBtn.textContent='Save'; }
+      });
+    </script>
+</body>
+</html>

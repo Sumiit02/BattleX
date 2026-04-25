@@ -1,0 +1,197 @@
+{% extends 'admin_base.html' %}
+{% block title %}Admin - Tournaments{% endblock %}
+
+{% block content %}
+     <div class="flex items-center justify-between mb-6">
+      <h1 class="text-3xl font-bold text-slate-900 tracking-wide">Tournaments</h1>
+       <a href="{{ url_for('admin_event_new') }}"
+          class="px-5 py-2 bg-gradient-to-r from-orange-500 to-yellow-500 text-black font-semibold rounded-lg shadow-md hover:opacity-90 transition">
+          + Create Tournament
+       </a>
+     </div>
+     {% if events %}
+     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+       {% for e in events %}
+       {% set mode_lower = (e.mode or '')|lower %}
+       {% set default_image_path = 'images/freefire.webp' %}
+       {% if 'br' in mode_lower and 'solo' in mode_lower %}
+         {% set default_image_path = 'images/solobr.webp' %}
+       {% elif 'br' in mode_lower and 'duo' in mode_lower %}
+         {% set default_image_path = 'images/duobr.webp' %}
+       {% elif 'br' in mode_lower and ('squad' in mode_lower or '4' in mode_lower) %}
+         {% set default_image_path = 'images/sqbr.webp' %}
+       {% endif %}
+       {% set display_image_url = (e.image_url if e.image_url else url_for('static', filename=default_image_path)) %}
+       <form method="post"
+         action="{{ url_for('admin_event_edit', eid=e.id) }}" enctype="multipart/form-data"
+         class="p-5 bg-white rounded-2xl shadow-lg border border-slate-200 hover:shadow-xl transition-all duration-200 relative event-card"
+         data-id="{{ e.id }}">
+         <input type="hidden" name="title" value="{{ e.title }}" />
+         <input type="hidden" name="existing_image" value="{{ e.image or default_image_path }}" />
+
+         <div class="flex flex-col gap-3">
+           <div class="flex justify-between items-center">
+             <h2 class="text-xl font-semibold text-slate-900 truncate">{{ e.title }}</h2>
+             <span class="px-2 py-1 text-xs rounded {{ 'bg-green-100 text-green-700' if e.is_open else 'bg-slate-200 text-slate-700' }}">
+               {{ 'OPEN' if e.is_open else 'CLOSED' }}
+             </span>
+           </div>
+
+           <div class="text-sm text-slate-600">
+             Mode: <strong>{{ e.mode }}</strong> • {{ e.region }} • {{ e.platform }}
+           </div>
+
+           <div class="text-sm text-slate-600">
+             Date:
+             <input type="date" name="date" value="{{ e.date|dateonly }}" class="bg-white border border-slate-200 p-1 rounded w-full mt-1" />
+           </div>
+
+           <div class="grid grid-cols-2 gap-2 mt-2">
+             <div class="text-sm text-slate-600">
+               Start:
+               <div class="flex gap-2 mt-1">
+                 <input type="time" name="start_time" value="{{ e.start_time|timevalue }}" step="60" class="bg-white border border-slate-200 p-1 rounded w-full" />
+                 <select name="start_period" class="bg-white border border-slate-200 rounded px-2 text-xs">
+                   {% set sp = e.start_time|timeperiod or 'PM' %}
+                   <option value="AM" {% if sp == 'AM' %}selected{% endif %}>AM</option>
+                   <option value="PM" {% if sp == 'PM' %}selected{% endif %}>PM</option>
+                 </select>
+               </div>
+               <p class="text-[11px] text-slate-500 mt-1">Current: {{ e.start_time|timeonly or '—' }}</p>
+             </div>
+             <div class="text-sm text-slate-600">
+               End:
+               <div class="flex gap-2 mt-1">
+                 <input type="time" name="end_time" value="{{ e.end_time|timevalue }}" step="60" class="bg-white border border-slate-200 p-1 rounded w-full" />
+                 <select name="end_period" class="bg-white border border-slate-200 rounded px-2 text-xs">
+                   {% set ep = e.end_time|timeperiod or 'PM' %}
+                   <option value="AM" {% if ep == 'AM' %}selected{% endif %}>AM</option>
+                   <option value="PM" {% if ep == 'PM' %}selected{% endif %}>PM</option>
+                 </select>
+               </div>
+               <p class="text-[11px] text-slate-500 mt-1">Current: {{ e.end_time|timeonly or '—' }}</p>
+             </div>
+           </div>
+
+           <div class="grid grid-cols-2 gap-2 mt-2">
+             <div class="text-sm text-slate-600">
+               Entry Fee (₹): <input name="entry_fee" type="number" value="{{ e.entry_fee or 0 }}" class="bg-white border border-slate-200 p-1 rounded w-full mt-1"/>
+             </div>
+             <div class="text-sm text-slate-600">
+               Prize Pool: <input name="prize_pool" value="{{ e.prize_pool or '' }}" class="bg-white border border-slate-200 p-1 rounded w-full mt-1"/>
+             </div>
+           </div>
+
+           <div class="grid grid-cols-2 gap-2 mt-2">
+             <div class="text-sm text-slate-600">
+               Max Slots: <input name="max_slots" type="number" value="{{ e.max_slots }}" class="bg-white border border-slate-200 p-1 rounded w-full mt-1"/>
+             </div>
+             <div class="text-sm text-slate-600">
+               Slots Left: <input name="slots_left" type="number" value="{{ e.slots_left }}" class="bg-white border border-slate-200 p-1 rounded w-full mt-1"/>
+             </div>
+           </div>
+
+           <div class="mt-3 text-sm text-slate-600">
+             Rules (one per line):
+             <textarea name="rules" rows="3" class="bg-white border border-slate-200 p-2 rounded w-full mt-1" placeholder="Enter rules for this event">{{ e.rules or '' }}</textarea>
+             <p class="text-[11px] text-slate-500 mt-1">These rules show on the registration rules modal.</p>
+           </div>
+
+           <div class="mt-3 text-sm text-slate-600">
+             <div class="text-xs text-slate-500 mb-1">Current Image</div>
+             <img src="{{ display_image_url }}" alt="card" class="h-24 w-full object-cover rounded border border-slate-200">
+             <label class="block mt-2">Replace Image</label>
+             <input name="card_image" type="file" accept="image/*,.webp" class="bg-white border border-slate-200 p-1 rounded w-full mt-1">
+           </div>
+
+           <div class="flex items-center mt-3">
+             <label class="flex items-center gap-2 text-sm text-slate-700">
+               <input type="checkbox" name="is_open" {{ 'checked' if e.is_open else '' }} />
+               Open
+             </label>
+           </div>
+
+           <div class="flex justify-end items-center mt-4">
+             <div class="flex gap-2">
+               <button type="submit"
+                       class="px-3 py-1 bg-emerald-600 text-white rounded text-sm hover:bg-emerald-500 transition">
+                       Save
+               </button>
+               <button type="button"
+                       data-id="{{ e.id }}"
+                       class="delete-event px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-500 transition">
+                       Delete
+               </button>
+             </div>
+           </div>
+
+           <!-- Instant feedback text -->
+           <span class="absolute top-3 right-3 text-xs text-green-400 hidden fade-text">Saved ✓</span>
+         </div>
+       </form>
+       {% endfor %}
+     </div>
+     {% else %}
+       <div class="text-slate-500">No tournaments yet.</div>
+     {% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // Delete event
+  async function postJson(url, method = 'POST', data = null) {
+    try {
+      const r = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: data ? JSON.stringify(data) : null
+      });
+      return await r.json();
+    } catch (e) {
+      return { success: false, error: String(e) };
+    }
+  }
+
+  // Delete event
+  document.querySelectorAll('.delete-event').forEach(btn => {
+    btn.addEventListener('click', async e => {
+      if (!confirm('Delete this tournament?')) return;
+      const id = e.target.dataset.id;
+      const res = await postJson(`/admin/events/${id}/delete`);
+      if (res.success) e.target.closest('.event-card').remove();
+      else alert('Failed: ' + (res.error || 'unknown'));
+    });
+  });
+
+  // Auto save feedback
+  document.querySelectorAll('form').forEach(form => {
+    form.addEventListener('submit', async e => {
+      e.preventDefault();
+      const data = new FormData(form);
+      const id = form.dataset.id;
+      const fadeText = form.querySelector('.fade-text');
+      try {
+        const res = await fetch(`/admin/events/${id}/edit`, {
+          method: 'POST',
+          body: data,
+          headers: { 'X-Requested-With': 'fetch' }
+        });
+        const result = await res.json().catch(() => null);
+
+        if (res.ok && (result?.success !== false)) {
+          fadeText.classList.remove('hidden');
+          fadeText.style.opacity = '1';
+          setTimeout(() => {
+            fadeText.style.opacity = '0';
+            setTimeout(() => fadeText.classList.add('hidden'), 1000);
+          }, 1000);
+        } else {
+          alert('Failed to save changes: ' + (result?.error || res.statusText));
+        }
+      } catch (err) {
+        alert('Failed to save changes: ' + err.message);
+      }
+    });
+  });
+</script>
+{% endblock %}

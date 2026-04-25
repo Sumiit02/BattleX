@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Admin • Manage Tournament</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body {
+      background: linear-gradient(180deg, #f8fafc 0%, #e2e8f0 100%);
+      color: #0f172a;
+      font-family: 'Inter', system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    }
+
+    .glass-box {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 16px;
+      box-shadow: 0 16px 38px rgba(148,163,184,0.2);
+      padding: 2rem;
+    }
+
+    input, textarea, select {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      color: #0f172a;
+      border-radius: 10px;
+      padding: 10px;
+      width: 100%;
+      outline: none;
+      transition: border 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    input:focus, textarea:focus, select:focus {
+      border-color: #f59e0b;
+      background: #fffdf7;
+      box-shadow: 0 0 0 4px rgba(249,115,22,0.16);
+    }
+
+    label {
+      font-size: 0.9rem;
+      color: #475569;
+      margin-bottom: 4px;
+      display: inline-block;
+      font-weight: 600;
+    }
+
+    .save-btn {
+      background: linear-gradient(135deg, #f97316, #fbbf24);
+      color: #111827;
+      font-weight: 700;
+      padding: 10px 18px;
+      border-radius: 10px;
+      border: 1px solid #f59e0b;
+      box-shadow: 0 10px 24px rgba(249,115,22,0.2);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .save-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 28px rgba(249,115,22,0.26);
+    }
+
+    .preview-card {
+      background: #ffffff;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid #e2e8f0;
+      box-shadow: 0 14px 30px rgba(148,163,184,0.22);
+    }
+
+    .preview-banner {
+      height: 150px;
+      background-size: cover;
+      background-position: center;
+      position: relative;
+    }
+
+    .preview-mode {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: linear-gradient(135deg,#f97316,#fbbf24);
+      color: #0f172a;
+      padding: 4px 10px;
+      font-size: 12px;
+      font-weight: 700;
+      border-radius: 6px;
+      box-shadow: 0 10px 20px rgba(249,115,22,0.24);
+      border:1px solid #f59e0b;
+    }
+  </style>
+</head>
+<body class="min-h-screen">
+  {% include '_navbar.html' %}
+
+  <div class="max-w-5xl mx-auto pt-24 px-4 space-y-10">
+    <div class="glass-box">
+      <h1 class="text-2xl font-bold mb-6 text-orange-500">
+        {{ 'Edit Tournament Artwork' if event else 'Create Tournament' }}
+      </h1>
+
+      {% set e = event or {} %}
+
+      <form method="post" enctype="multipart/form-data" class="space-y-5">
+        {% if event %}
+        <input type="hidden" name="title" value="{{ e.title }}">
+        <input type="hidden" name="slug" value="{{ e.slug }}">
+        <input type="hidden" name="mode" value="{{ e.mode }}">
+        <input type="hidden" name="date" value="{{ e.date }}">
+        <input type="hidden" name="region" value="{{ e.region }}">
+        <input type="hidden" name="platform" value="{{ e.platform }}">
+        <input type="hidden" name="start_time" value="{{ e.start_time }}">
+        <input type="hidden" name="end_time" value="{{ e.end_time }}">
+        <input type="hidden" name="max_slots" value="{{ e.max_slots }}">
+        <input type="hidden" name="slots_left" value="{{ e.slots_left }}">
+        <input type="hidden" name="entry_fee" value="{{ e.entry_fee }}">
+        <input type="hidden" name="prize_pool" value="{{ e.prize_pool }}">
+        <input type="hidden" name="description" value="{{ e.description }}">
+
+        <div class="bg-slate-50 border border-slate-200 rounded-xl p-4">
+          <label class="block mb-2 font-semibold text-slate-700">Rules (one per line)</label>
+          <textarea name="rules" rows="4" class="w-full bg-white border border-slate-200 rounded-lg p-3" placeholder="Enter rules players must accept">{{ e.rules or '' }}</textarea>
+          <p class="text-[12px] text-slate-500 mt-1">Shown on the registration rules modal for this event.</p>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5 text-sm text-slate-700 bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+          <div>
+            <p class="text-slate-500 uppercase tracking-wide text-xs">Title</p>
+            <p class="text-lg font-semibold text-slate-900">{{ e.title }}</p>
+          </div>
+          <div>
+            <p class="text-slate-500 uppercase tracking-wide text-xs">Mode</p>
+            <p class="text-lg font-semibold text-slate-900">{{ e.mode }}</p>
+          </div>
+          <div>
+            <p class="text-slate-500 uppercase tracking-wide text-xs">Schedule</p>
+            <p>{{ e.date or 'TBD' }} &bull; {{ e.start_time or 'TBD' }} - {{ e.end_time or 'TBD' }}</p>
+          </div>
+          <div>
+            <p class="text-slate-500 uppercase tracking-wide text-xs">Prize Pool</p>
+            <p>{{ e.prize_pool or 'N/A' }}</p>
+          </div>
+          <div>
+            <p class="text-slate-500 uppercase tracking-wide text-xs">Slots</p>
+            <p>{{ e.slots_left }}/{{ e.max_slots }}</p>
+          </div>
+          <div>
+            <p class="text-slate-500 uppercase tracking-wide text-xs">Entry Fee</p>
+            <p>₹{{ e.entry_fee or 0 }}</p>
+          </div>
+        </div>
+        {% else %}
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label>Title</label>
+            <input name="title" value="{{ e.title or '' }}" required />
+          </div>
+          <div>
+            <label>Slug (optional)</label>
+            <input name="slug" value="{{ e.slug or '' }}" />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label>Mode</label>
+            <select name="mode">
+              <option value="{{ e.mode or '' }}" selected>{{ e.mode or 'Select mode' }}</option>
+              <option>BR Solo</option>
+              <option>BR Duo</option>
+              <option>BR Squad</option>
+              <option>CS 1v1</option>
+              <option>Custom</option>
+            </select>
+          </div>
+          <div>
+            <label>Date</label>
+            <input name="date" type="date" value="{{ e.date or '' }}" />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label>Region</label>
+            <input name="region" value="{{ e.region or 'India' }}" />
+          </div>
+          <div>
+            <label>Platform</label>
+            <input name="platform" value="{{ e.platform or 'Mobile' }}" />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label class="text-sm text-slate-600">Start Time</label>
+            <div class="flex gap-3">
+              <input name="start_time" type="time" step="60" class="w-full p-2 bg-white rounded border border-slate-200" value="{{ e.start_time|timevalue }}" />
+              <select name="start_period" class="bg-white rounded px-2 border border-slate-200">
+                {% set sp = e.start_time|timeperiod or 'PM' %}
+                <option value="AM" {% if sp == 'AM' %}selected{% endif %}>AM</option>
+                <option value="PM" {% if sp == 'PM' %}selected{% endif %}>PM</option>
+              </select>
+            </div>
+            <p class="text-[11px] text-slate-500 mt-1">Displays as {{ e.start_time|timeonly or '—' }}</p>
+          </div>
+          <div>
+            <label class="text-sm text-slate-600">End Time</label>
+            <div class="flex gap-3">
+              <input name="end_time" type="time" step="60" class="w-full p-2 bg-white rounded border border-slate-200" value="{{ e.end_time|timevalue }}" />
+              <select name="end_period" class="bg-white rounded px-2 border border-slate-200">
+                {% set ep = e.end_time|timeperiod or 'PM' %}
+                <option value="AM" {% if ep == 'AM' %}selected{% endif %}>AM</option>
+                <option value="PM" {% if ep == 'PM' %}selected{% endif %}>PM</option>
+              </select>
+            </div>
+            <p class="text-[11px] text-slate-500 mt-1">Displays as {{ e.end_time|timeonly or '—' }}</p>
+          </div>
+        </div>
+
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div>
+            <label>Max Slots</label>
+            <input name="max_slots" type="number" value="{{ e.max_slots or 32 }}" />
+          </div>
+          <div>
+            <label>Slots Left</label>
+            <input name="slots_left" type="number" value="{{ e.slots_left or e.max_slots or 32 }}" />
+          </div>
+          <div>
+            <label>Entry Fee (₹)</label>
+            <input name="entry_fee" type="number" value="{{ e.entry_fee or 0 }}" />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label>Prize Pool</label>
+            <input name="prize_pool" value="{{ e.prize_pool or '' }}" />
+          </div>
+        </div>
+
+        <div>
+          <label>Rules (one per line)</label>
+          <textarea name="rules" rows="4" placeholder="Enter rules players must accept">{{ e.rules or '' }}</textarea>
+        </div>
+
+        <div>
+          <label>Description</label>
+          <textarea name="description" rows="3">{{ e.description or '' }}</textarea>
+        </div>
+        {% endif %}
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label>Card Image</label>
+            {% set mode_lower = (e.mode or '')|lower %}
+            {% set default_image_path = 'images/freefire.webp' %}
+            {% if 'br' in mode_lower and 'solo' in mode_lower %}
+              {% set default_image_path = 'images/solobr.webp' %}
+            {% elif 'br' in mode_lower and 'duo' in mode_lower %}
+              {% set default_image_path = 'images/duobr.webp' %}
+            {% elif 'br' in mode_lower and ('squad' in mode_lower or '4' in mode_lower) %}
+              {% set default_image_path = 'images/sqbr.webp' %}
+            {% endif %}
+            <input id="imageUpload" name="card_image" type="file" accept="image/*,.webp">
+            <input type="hidden" name="existing_image" value="{{ e.image or default_image_path }}">
+            <p class="text-xs text-slate-500 mt-1">Upload WebP/PNG/JPG (max 5 MB). Leave empty to keep the current artwork.</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <label class="flex items-center gap-2">
+              <input type="checkbox" name="is_open" {% if e.is_open %}checked{% endif %}>
+              <span>Open for Joining</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-3 mt-4">
+          <button type="submit" class="save-btn">
+            {{ 'Update Artwork' if event else 'Save Tournament' }}
+          </button>
+          <a href="{{ url_for('admin_events') }}" class="text-slate-500 text-sm hover:underline">Cancel</a>
+        </div>
+      </form>
+    </div>
+
+    <!-- Live Preview -->
+    <div>
+      <h2 class="text-xl font-semibold text-orange-500 mb-3">Live Card Preview</h2>
+      <div class="preview-card w-full max-w-sm">
+        <div id="previewBanner" class="preview-banner" style="background-image:url('{{ e.image or '' }}')">
+          <span class="preview-mode">{{ e.mode or 'Mode' }}</span>
+        </div>
+        <div class="p-4">
+          <h3 class="text-lg font-semibold truncate" id="previewTitle">{{ e.title or 'Tournament Title' }}</h3>
+          <p class="text-sm text-slate-600" id="previewInfo">📅 {{ e.date or 'TBD' }} • 📍 {{ e.region or 'India' }}</p>
+          <p class="text-sm text-slate-600 mt-1" id="previewTiming">⏰ {{ e.start_time|timeonly or 'TBD' }} - {{ e.end_time|timeonly or 'TBD' }}</p>
+          <p class="mt-2 text-orange-500 font-semibold">Entry Fee: ₹{{ e.entry_fee or 0 }}</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const titleInput = document.querySelector('input[name="title"]:not([type="hidden"])');
+    const hiddenTitle = document.querySelector('input[name="title"][type="hidden"]');
+    const modeInput = document.querySelector('select[name="mode"]');
+    const hiddenMode = document.querySelector('input[name="mode"][type="hidden"]');
+    const dateInput = document.querySelector('input[name="date"]:not([type="hidden"])');
+    const hiddenDate = document.querySelector('input[name="date"][type="hidden"]');
+    const regionInput = document.querySelector('input[name="region"]:not([type="hidden"])');
+    const hiddenRegion = document.querySelector('input[name="region"][type="hidden"]');
+    const imageUpload = document.getElementById('imageUpload');
+    const hasPresetImage = '{{ e.image or '' }}'.trim().length > 0;
+    let previewImageUrl = '{{ e.image or '' }}';
+
+    const previewTitle = document.getElementById('previewTitle');
+    const previewMode = document.querySelector('.preview-mode');
+    const previewBanner = document.getElementById('previewBanner');
+    const previewInfo = document.getElementById('previewInfo');
+
+    function currentValue(primary, fallback, placeholder) {
+      if (primary && primary.value !== undefined && primary.value !== '') return primary.value;
+      if (fallback && fallback.value !== undefined && fallback.value !== '') return fallback.value;
+      return placeholder;
+    }
+
+    function mapModeToImage(modeVal){
+      if(!modeVal) return '';
+      const text = String(modeVal).toLowerCase();
+      if(text.includes('br') && text.includes('solo')) return "{{ url_for('static', filename='images/solobr.webp') }}";
+      if(text.includes('br') && text.includes('duo')) return "{{ url_for('static', filename='images/duobr.webp') }}";
+      if(text.includes('br') && (text.includes('squad') || text.includes('4'))) return "{{ url_for('static', filename='images/sqbr.webp') }}";
+      return '';
+    }
+
+    function applyModeDefaultImage(modeVal){
+      const mapped = mapModeToImage(modeVal);
+      if(!mapped) return;
+      if (imageUpload && imageUpload.files && imageUpload.files.length > 0) return;
+      if (!hasPresetImage) {
+        previewImageUrl = mapped;
+        const existingHidden = document.querySelector('input[name="existing_image"]');
+        if (existingHidden) existingHidden.value = mapped.replace(/^.*\/static\//,'').replace(/^\//,'').replace(window.location.origin+'/', '');
+        updatePreview();
+      }
+    }
+
+    function updatePreview() {
+      const titleVal = currentValue(titleInput, hiddenTitle, 'Tournament Title');
+      const modeVal = currentValue(modeInput, hiddenMode, 'Mode');
+      const dateVal = currentValue(dateInput, hiddenDate, 'TBD');
+      const regionVal = currentValue(regionInput, hiddenRegion, 'India');
+
+      previewTitle.textContent = titleVal;
+      if (previewMode) previewMode.textContent = modeVal;
+      previewInfo.textContent = `📅 ${dateVal || 'TBD'} • 📍 ${regionVal || 'India'}`;
+      previewBanner.style.backgroundImage = `url('${previewImageUrl || ''}')`;
+    }
+
+    if (titleInput) titleInput.addEventListener('input', updatePreview);
+    if (modeInput) {
+      modeInput.addEventListener('input', () => {
+        applyModeDefaultImage(modeInput.value);
+        updatePreview();
+      });
+      // initial apply if no preset image
+      if (!hasPresetImage) applyModeDefaultImage(modeInput.value);
+    }
+    if (dateInput) dateInput.addEventListener('input', updatePreview);
+    if (regionInput) regionInput.addEventListener('input', updatePreview);
+
+    imageUpload.addEventListener('change', evt => {
+      const file = evt.target.files && evt.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = e => { previewImageUrl = e.target.result; updatePreview(); };
+      reader.readAsDataURL(file);
+    });
+
+    updatePreview();
+  </script>
+</body>
+</html>

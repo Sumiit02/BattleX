@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Login • BATTLE-X</title>
+
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+  <!-- FontAwesome -->
+  <script src="https://kit.fontawesome.com/a2e0e6f4d6.js" crossorigin="anonymous"></script>
+
+  <style>
+    body { font-family: 'Poppins', sans-serif; background: linear-gradient(180deg, #f8fafc 0%, #e2e8f0 100%); color: #0f172a; margin: 0; }
+    a { color: inherit; }
+    .auth-shell { max-width: 1100px; margin: 0 auto; min-height: 100vh; padding: 48px 18px 40px; box-sizing: border-box; display: grid; gap: 18px; width: 100%; }
+    .auth-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 18px; align-items: start; }
+    .info-panel { background: transparent; border: none; border-radius: 0; padding: 0; box-shadow: none; margin: 0; }
+    .brand-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+    .brand-left { display: flex; align-items: center; gap: 12px; font-weight: 800; letter-spacing: -0.01em; color: #0f172a; }
+    .brand-mark { width: 42px; height: 42px; border-radius: 14px; overflow: hidden; border: 1px solid #e2e8f0; background: #fff; display: grid; place-items: center; }
+    .brand-mark img { width: 100%; height: 100%; object-fit: contain; }
+    .auth-title { font-size: 28px; font-weight: 900; margin: 6px 0 6px; color: #0f172a; }
+    .auth-sub { color: #475569; font-size: 14.5px; line-height: 1.6; margin: 0 0 12px; }
+    .pill-toggle { display: inline-flex; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 999px; padding: 4px; gap: 6px; }
+    .pill-option { padding: 8px 12px; border-radius: 999px; border: none; background: transparent; color: #475569; font-weight: 700; cursor: pointer; font-size: 13px; }
+    .pill-option.active { background: linear-gradient(120deg,#f97316,#fbbf24); color: #111827; box-shadow: 0 10px 22px rgba(249,115,22,0.18); }
+    .field { display: grid; gap: 6px; }
+    .field label { font-size: 13px; color: #475569; }
+    .input { width: 100%; padding: 12px 12px; border-radius: 12px; border: 1px solid #e2e8f0; background: #ffffff; color: #0f172a; box-sizing: border-box; }
+    .password-wrap { position: relative; }
+    .password-wrap .input { padding-right: 44px; }
+    .password-toggle { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); border: none; background: transparent; color: #f97316; width: 28px; height: 28px; display: grid; place-items: center; cursor: pointer; }
+    .password-toggle:hover { color: #ea580c; }
+    .password-toggle svg { width: 18px; height: 18px; stroke: currentColor; }
+    .password-toggle .icon-hidden { display: none; }
+    .password-toggle.showing .icon-visible { display: none; }
+    .password-toggle.showing .icon-hidden { display: inline; }
+    .input:focus { outline: 2px solid #f97316; outline-offset: 0; }
+    .row-between { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 12px; color: #475569; }
+    .checkbox-row { display: inline-flex; align-items: center; gap: 6px; }
+    .primary-btn { width: 100%; padding: 13px; border-radius: 12px; border: none; background: linear-gradient(120deg,#f97316,#fbbf24); color: #111827; font-weight: 800; cursor: pointer; box-shadow: 0 12px 32px rgba(249,115,22,0.22); }
+    .ghost-btn { width: 100%; padding: 12px; border-radius: 12px; border: 1px solid #e2e8f0; background: #f8fafc; color: #0f172a; font-weight: 700; text-align: center; display: inline-block; text-decoration: none; }
+    .google-btn { width: 100%; max-width: 100%; box-sizing: border-box; display: flex; align-items: center; justify-content: center; gap: 10px; padding: 12px; border-radius: 12px; border: 1px solid #e2e8f0; background: #ffffff; color: #111827; font-weight: 700; text-decoration: none; box-shadow: 0 10px 24px rgba(148,163,184,0.12); margin: 0; }
+    .google-icon { width: 18px; height: 18px; background: url('https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg') center/contain no-repeat; display: inline-block; }
+    .helper { font-size: 13px; color: #475569; }
+    .link { color: #f97316; font-weight: 700; text-decoration: none; }
+    .spacer { height: 12px; }
+    .form-panel { display: grid; gap: 14px; background: transparent; padding: 0; }
+    .stacked-actions { display: grid; gap: 10px; margin-top: 0; }
+    /* Modal */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.35); display: grid; place-items: center; z-index: 50; padding: 16px; }
+    .modal-card { position: relative; max-width: 420px; width: 100%; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 18px; padding: 22px 18px; box-shadow: 0 16px 46px rgba(148,163,184,0.3); }
+    .modal-close { position: absolute; top: 12px; right: 12px; background: transparent; border: none; color: #475569; font-size: 18px; cursor: pointer; }
+    .modal-title { font-size: 20px; font-weight: 800; color: #f97316; margin: 4px 0 8px; }
+    .modal-text { color: #334155; font-size: 14px; line-height: 1.5; margin: 0 0 14px; }
+    .modal-btn { display: inline-block; padding: 11px 14px; background: linear-gradient(120deg,#f97316,#fbbf24); color: #111827; font-weight: 800; border-radius: 12px; text-decoration: none; }
+    @media (max-width: 640px){
+      .auth-shell { padding: 0px 12px 16px; gap: 0; }
+      .auth-grid { display: block; margin: 0; padding: 0; }
+      .info-panel { padding: 0; margin: 0 0 30px; }
+      .brand-row { margin: 0 0 4px; }
+      .auth-title { margin: 0 0 3px; }
+      .auth-sub { margin: 0 0 3px; line-height: 1.45; }
+      .pill-toggle { margin-top: 2px; }
+      .form-panel { gap: 19px; margin: 0; padding: 0; }
+      .spacer { height: 7px; margin: 0; }
+      .stacked-actions { gap: 6px; }
+      .google-btn { width: 100%; max-width: 100%; box-sizing: border-box; margin: 0; }
+    }
+  </style>
+</head>
+<body>
+  {% include '_navbar.html' %}
+
+  <main class="auth-shell">
+    <div class="auth-grid">
+      <section class="info-panel">
+        <div class="brand-row">
+          <div class="brand-left">
+            <span class="brand-mark">
+              <img src="{{ url_for('static', filename='images/navlogo.webp') }}" alt="BATTLE-X" />
+            </span>
+            <span>BATTLE-X</span>
+          </div>
+          <a class="link" href="{{ url_for('home') }}">Home</a>
+        </div>
+        <h1 class="auth-title">Welcome back</h1>
+        <p class="auth-sub">Log in as player or admin to jump into your matches.</p>
+        <div class="pill-toggle" id="roleToggle">
+          <button type="button" class="pill-option active" data-role="player">Player</button>
+          <button type="button" class="pill-option" data-role="admin">Admin</button>
+        </div>
+      </section>
+
+      <section class="form-panel">
+        <form id="loginForm" action="{{ url_for('login') }}" method="post" class="form">
+          <div class="field">
+            <label for="username">Username or email</label>
+            <input id="username" name="username" class="input" placeholder="username@example.com" required />
+          </div>
+
+          <div class="field">
+            <label for="password">Password</label>
+            <div class="password-wrap">
+              <input id="password" name="password" type="password" class="input" placeholder="••••••••" required />
+              <button type="button" class="password-toggle" data-target="password" aria-label="Show password" aria-pressed="false">
+                <svg class="icon-visible" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                  <circle cx="12" cy="12" r="3" stroke-width="2"></circle>
+                </svg>
+                <svg class="icon-hidden" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M17.94 17.94A10.94 10.94 0 0 1 12 20C5 20 1 12 1 12a21.68 21.68 0 0 1 5.06-6.94"></path>
+                  <path stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M9.9 4.24A10.95 10.95 0 0 1 12 4c7 0 11 8 11 8a21.6 21.6 0 0 1-2.16 3.19"></path>
+                  <path stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M14.12 14.12a3 3 0 1 1-4.24-4.24"></path>
+                  <line x1="1" y1="1" x2="23" y2="23" stroke-width="2" stroke-linecap="round"></line>
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="field" id="adminCode" style="display:none;">
+            <label for="admin_code">Admin code</label>
+            <input id="admin_code" name="admin_code" class="input" placeholder="Enter admin code" />
+          </div>
+
+          <div class="row-between">
+            <label class="checkbox-row">
+              <input type="checkbox" name="remember" />
+              <span>Remember me</span>
+            </label>
+            <a class="link role-hide-admin" href="#">Forgot?</a>
+          </div>
+
+          <input type="hidden" name="role" id="roleInput" value="player" />
+
+          <div class="spacer"></div>
+          <button type="submit" class="primary-btn">Log in</button>
+        </form>
+
+        <div class="stacked-actions">
+          {% if google_login_enabled %}
+          <a class="google-btn role-hide-admin" href="{{ url_for('google_login', next=request.args.get('next') or request.form.get('next')) }}">
+            <span class="google-icon"></span>
+            <span>Continue with Google</span>
+          </a>
+          {% endif %}
+          <div class="helper role-hide-admin">New here? <a class="link" href="{{ url_for('signup') }}">Create an account</a></div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!-- JavaScript: Role Toggle -->
+  <script>
+    (function(){
+      const toggles = document.querySelectorAll('.password-toggle');
+      toggles.forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const targetId = btn.getAttribute('data-target');
+          const input = targetId ? document.getElementById(targetId) : null;
+          if (!input) return;
+          const shouldShow = input.type === 'password';
+          input.type = shouldShow ? 'text' : 'password';
+          btn.classList.toggle('showing', shouldShow);
+          btn.setAttribute('aria-label', shouldShow ? 'Hide password' : 'Show password');
+          btn.setAttribute('aria-pressed', shouldShow ? 'true' : 'false');
+        });
+      });
+
+      const toggle = document.getElementById('roleToggle');
+      const roleInput = document.getElementById('roleInput');
+      const adminCode = document.getElementById('adminCode');
+      const roleHideEls = Array.from(document.querySelectorAll('.role-hide-admin'));
+      if(!toggle || !roleInput || !adminCode) return;
+      toggle.addEventListener('click', (e) => {
+        const btn = e.target.closest('.pill-option');
+        if(!btn) return;
+        const role = btn.dataset.role;
+        roleInput.value = role;
+        document.querySelectorAll('.pill-option').forEach(b => b.classList.toggle('active', b === btn));
+        adminCode.style.display = role === 'admin' ? 'grid' : 'none';
+        roleHideEls.forEach(el => { el.style.display = role === 'admin' ? 'none' : ''; });
+      });
+      // initialize hidden state
+      roleHideEls.forEach(el => { el.style.display = roleInput.value === 'admin' ? 'none' : ''; });
+    })();
+  </script>
+
+  <!-- Welcome Modal (shown after signup) -->
+  {% if welcome_user %}
+  <div id="welcomeModal" class="modal-overlay">
+    <div class="modal-card">
+      <button id="welcomeClose" class="modal-close">✕</button>
+      <h2 class="modal-title">Welcome to BATTLE-X, {{ welcome_user }}!</h2>
+      <p class="modal-text">Thanks for signing up — we're excited to see you in tournaments. Please log in to continue.</p>
+      <a href="{{ url_for('login') }}" id="welcomeProceed" class="modal-btn">Go to Login</a>
+    </div>
+  </div>
+  <script>
+    (function(){
+      const modal = document.getElementById('welcomeModal');
+      const close = document.getElementById('welcomeClose');
+      if(!modal) return;
+      close.addEventListener('click', function(){ modal.style.display = 'none'; });
+      modal.addEventListener('click', function(e){ if(e.target === modal) modal.style.display = 'none'; });
+      // auto-focus login username field
+      const uname = document.querySelector('input[name=username]'); if(uname) uname.focus();
+    })();
+  </script>
+  {% endif %}
+
+</body>
+</html>

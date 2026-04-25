@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Complete Payment — BATTLE-X</title>
+  <script src="https://sdk.cashfree.com/js/v3/cashfree.js"></script>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <style>
+    /* Make the whole layout span edge-to-edge while keeping professional spacing */
+    body {
+      margin: 0;
+      background: #f8fafc;
+      color: #0f172a;
+      font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      min-height: 100vh;
+      box-sizing: border-box;
+    }
+    /* Full-width container with comfortable horizontal padding */
+    .container {
+      width: 100%;
+      margin: 0;
+      padding: 3rem 4rem;
+      box-sizing: border-box;
+      background: linear-gradient(180deg,#f8fafc 0%,#e2e8f0 100%);
+    }
+    /* Keep card styling but allow it to span full container width and add subtle shadow */
+    .card {
+      background: #ffffff;
+      padding: 2rem;
+      border-radius: 14px;
+      border: 1px solid #e2e8f0;
+      width: 100%;
+      box-shadow: 0 14px 36px rgba(148,163,184,0.22);
+    }
+    .btn {
+      background: linear-gradient(90deg,#f97316,#fbbf24);
+      color: #111827;
+      padding: .8rem 1.2rem;
+      border-radius: 10px;
+      font-weight: 700;
+      box-shadow: 0 10px 22px rgba(249,115,22,0.22);
+      border: 1px solid #f59e0b;
+    }
+    /* Responsive: reduce padding on small screens */
+    @media (max-width: 768px) {
+      .container { padding: 1rem; }
+      .card { padding: 1rem; border-radius: 10px; }
+    }
+  </style>
+</head>
+<body>
+  {% include '_navbar.html' %}
+  <div class="container">
+    <div class="card">
+      <div class="flex items-center justify-between mb-6">
+        <h2 class="text-2xl font-bold">Complete Payment</h2>
+        <div class="text-sm text-gray-300">Registration ID: {{ registration.id }}</div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+          <h3 class="font-semibold mb-2">Player Details</h3>
+          <div class="overflow-x-auto">
+            <table class="min-w-full text-sm text-left">
+              <thead class="sr-only"><tr><th>Field</th><th>Value</th></tr></thead>
+              <tbody class="bg-transparent">
+                {% if registration.username %}
+                <tr class="border-b border-gray-700"><td class="py-2 pr-4 font-medium w-32">Name</td><td class="py-2">{{ registration.username }}</td></tr>
+                {% endif %}
+                {% if registration.email %}
+                <tr class="border-b border-gray-700"><td class="py-2 pr-4 font-medium">Email</td><td class="py-2">{{ registration.email }}</td></tr>
+                {% endif %}
+                {% if registration.phone %}
+                <tr class="border-b border-gray-700"><td class="py-2 pr-4 font-medium">Phone</td><td class="py-2">{{ registration.phone }}</td></tr>
+                {% endif %}
+                {% if registration.payout_upi %}
+                <tr class="border-b border-gray-700"><td class="py-2 pr-4 font-medium">Prize UPI</td><td class="py-2">{{ registration.payout_upi }}</td></tr>
+                {% endif %}
+                {% if registration.college %}
+                <tr class="border-b border-gray-700"><td class="py-2 pr-4 font-medium">College</td><td class="py-2">{{ registration.college }}</td></tr>
+                {% endif %}
+                {% if registration.roll_no %}
+                <tr class="border-b border-gray-700"><td class="py-2 pr-4 font-medium">Roll No</td><td class="py-2">{{ registration.roll_no }}</td></tr>
+                {% endif %}
+                {% if registration.branch %}
+                <tr class="border-b border-gray-700"><td class="py-2 pr-4 font-medium">Branch</td><td class="py-2">{{ registration.branch }}</td></tr>
+                {% endif %}
+                {% if registration.year %}
+                <tr class="border-b border-gray-700"><td class="py-2 pr-4 font-medium">Year</td><td class="py-2">{{ registration.year }}</td></tr>
+                {% endif %}
+                {% if registration.tshirt_size %}
+                <tr class="border-b border-gray-700"><td class="py-2 pr-4 font-medium">T-shirt</td><td class="py-2">{{ registration.tshirt_size }}</td></tr>
+                {% endif %}
+                {% if registration.team_name %}
+                <tr class="border-b border-gray-700"><td class="py-2 pr-4 font-medium">Team</td><td class="py-2">{{ registration.team_name }}</td></tr>
+                {% endif %}
+                {% if registration.event_name %}
+                <tr class="border-b border-gray-700"><td class="py-2 pr-4 font-medium">Event</td><td class="py-2">{{ registration.event_name }}</td></tr>
+                {% endif %}
+                <tr class="border-b border-gray-700"><td class="py-2 pr-4 font-medium">Mode</td><td class="py-2">{{ registration.mode }}</td></tr>
+                <tr class="border-b border-gray-700"><td class="py-2 pr-4 font-medium">Amount</td><td class="py-2">
+                  {% if registration.amount %}₹{{ (registration.amount/100)|int }}{% else %}₹100{% endif %}
+                </td></tr>
+                {% if registration.created_at %}
+                <tr><td class="py-2 pr-4 font-medium">Registered on</td><td class="py-2">{{ registration.created_at }}</td></tr>
+                {% endif %}
+              </tbody>
+            </table>
+          </div>
+         </div>
+         <div class="text-center">
+          <h3 class="font-semibold mb-2">Secure Checkout</h3>
+          <p class="text-sm text-gray-600 mb-4">Use Cashfree hosted checkout to complete your registration payment securely.</p>
+          <button id="payGateway" class="btn">Proceed to Cashfree</button>
+        </div>
+      </div>
+
+      <div id="status" class="mt-6 text-green-400"></div>
+    </div>
+  </div>
+
+<script>
+const reg = {{ registration|tojson|safe }};
+const payGateway = document.getElementById('payGateway');
+const status = document.getElementById('status');
+const cashfreeMode = {{ cashfree_env|default('sandbox')|tojson|safe }};
+
+async function createOrderAndOpen(reg_id){
+  try{
+    // Create Cashfree order/session for this registration.
+    const res = await fetch('/create_payment_order', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ registration_id: reg_id, event_id: reg.event_id, mode: reg.mode, email: reg.email })
+    });
+    const j = await res.json();
+    if(!j.success) throw new Error(j.error||'failed');
+
+    // Preferred path: open Cashfree popup/redirect through SDK.
+    if (j.payment_session_id && typeof Cashfree !== 'undefined') {
+      const mode = (cashfreeMode || 'sandbox').toLowerCase() === 'production' ? 'production' : 'sandbox';
+      const cashfree = Cashfree({ mode });
+      const result = await cashfree.checkout({
+        paymentSessionId: j.payment_session_id,
+        redirectTarget: '_self'
+      });
+
+      if (result && result.error) {
+        throw new Error(result.error.message || 'Cashfree checkout failed');
+      }
+
+      // Some SDK flows return without redirect; verify explicitly as fallback.
+      const verifyRes = await fetch('/verify_payment', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ registration_id: reg.id, cashfree_order_id: j.order_id })
+      });
+      const verifyJson = await verifyRes.json();
+      if (verifyJson.success) {
+        status.innerText = 'Payment successful — redirecting...';
+        setTimeout(()=>{ window.location.href = `/payment_success?payment_id=${verifyJson.payment_id}` }, 900);
+      } else {
+        alert('Verification failed: ' + (verifyJson.error || 'Unknown error'));
+      }
+      return;
+    }
+
+    // Fallback path: redirect to hosted payment link if SDK session is unavailable.
+    if (j.payment_link) {
+      window.location.href = j.payment_link;
+      return;
+    }
+
+    throw new Error('Cashfree session could not be started.');
+  }catch(e){ alert('Payment error: '+e.message) }
+}
+
+payGateway.addEventListener('click', ()=> createOrderAndOpen(reg.id));
+</script>
+</body>
+</html>

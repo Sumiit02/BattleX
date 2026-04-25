@@ -1,0 +1,362 @@
+<nav aria-label="Main navigation" class="w-full">
+    <style>
+        body { margin: 0; }
+        /* Global page loader overlay */
+        #globalLoader {
+            position: fixed;
+            inset: 0;
+            background: rgba(255,255,255,0.05);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            transition: opacity .28s ease, visibility .28s ease;
+        }
+        #globalLoader.hidden {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+        .loader-ring {
+            width: 72px;
+            height: 72px;
+            border-radius: 50%;
+            border: 6px solid rgba(255,255,255,0.15);
+            border-top-color: #f97316;
+            animation: spin 1s linear infinite;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .navbar {
+            display:flex;
+            align-items:center;
+            justify-content:space-between;
+            padding:.75rem 1rem;
+            position:fixed;
+            top:0;
+            left:0;
+            width:100vw;
+            max-width:100vw;
+            height:64px;
+            background: rgba(255,255,255,0.92);
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
+            border-bottom: 1px solid #e2e8f0;
+            box-sizing: border-box;
+            z-index: 1000;
+        }
+        .brand {
+            display:flex;
+            align-items:center;
+            gap:.7rem;
+            color:#0f172a;
+            text-decoration:none;
+            font-weight:700;
+            font-size:1rem;
+            cursor:pointer;
+            user-select:none;
+        }
+        .brand-mark {
+            width:25px;
+            height:25px;
+            border-radius:12px;
+            position:relative;
+            overflow:hidden;
+            background:radial-gradient(circle at 20% 20%,rgba(255,255,255,0.3),rgba(255,255,255,0)),linear-gradient(135deg,#ff8a00,#ef4444,#8b5cf6);
+            box-shadow:0 10px 30px rgba(0,0,0,0.4);
+        }
+        .brand-mark svg { position:absolute; inset:0; width:100%; height:100%; }
+        .brand-copy { display:flex; flex-direction:column; line-height:1; }
+        .brand-name { font-size:1.05rem; letter-spacing:0.04em; color:#0f172a; }
+        .brand-tagline { font-size:.65rem; text-transform:uppercase; letter-spacing:0.4em; color:#64748b; }
+        .nav-links {
+            display:flex;
+            align-items:center;
+            gap:1.1rem;
+            font-size:.95rem;
+            margin-left:1rem;
+            color:#475569;
+        }
+        .nav-links a {
+            color:inherit;
+            text-decoration:none;
+            padding:.35rem .65rem;
+            border-radius:999px;
+            transition:color .15s ease, background-color .15s ease;
+        }
+        .nav-links a:hover { color:#0f172a; background:rgba(15,23,42,0.06); }
+        .nav-pill {
+            padding:.35rem .9rem;
+            border-radius:999px;
+            border:1px solid #fed7aa;
+            font-size:.7rem;
+            letter-spacing:.3em;
+            text-transform:uppercase;
+            color:#c2410c;
+            background:#fff7ed;
+        }
+        .nav-cta {
+            display:inline-flex;
+            align-items:center;
+            gap:.4rem;
+            padding:.5rem 1rem;
+            border-radius:999px;
+            border:1px solid #f59e0b;
+            color:#0f172a;
+            text-decoration:none;
+            font-weight:600;
+            background:linear-gradient(120deg,#fefce8,#fffbeb);
+            transition:transform .2s ease, border-color .2s ease, background .2s ease;
+        }
+        .nav-cta svg { width:14px; height:14px; }
+        .nav-cta:hover { border-color:#f97316; background:linear-gradient(120deg,#fef3c7,#ffe4e6); transform:translateY(-1px); }
+        .mobile-quick-links { display:none; }
+        .hambtn {
+            width:44px;
+            height:44px;
+            border-radius:8px;
+            display:inline-flex;
+            align-items:center;
+            justify-content:center;
+            cursor:pointer;
+            background:#ffffff;
+            border:1px solid #285896ff;
+            transition:transform .12s;
+        }
+        .hambtn:active { transform:scale(.98); }
+        .hambars {
+            display:block;
+            width:18px;
+            height:2px;
+            background: #0f172a;
+            border-radius:2px;
+            position:relative;
+        }
+        .hambars::before, .hambars::after {
+            content:''; position:absolute; left:0;
+            width:18px; height:2px; background: #0f172a; border-radius:2px;
+        }
+        .hambars::before { top:-6px; }
+        .hambars::after { top:6px; }
+        .menu-backdrop {
+            position:fixed;
+            inset:0;
+            background:rgba(15,23,42,0.2);
+            display:none;
+            align-items:flex-start;
+            justify-content:flex-end;
+            z-index: 900;
+        }
+        .menu-panel {
+            margin: calc(var(--nav-gap, 72px)) 20px 0 0;
+            width:260px;
+            background:#ffffff;
+            border-radius:12px;
+            padding:.6rem;
+            border:1px solid #ec9130ff;
+            box-shadow:0 16px 40px rgba(148,163,184,0.35);
+            transform:translateY(-6px) scale(.98);
+            opacity:0;
+            transition:all .18s ease;
+            z-index:1100;
+            pointer-events:auto;
+        }
+        .menu-backdrop.open { display:flex; }
+        .menu-panel.open { transform:translateY(0) scale(1); opacity:1; }
+        .menu-item {
+            display:flex;
+            align-items:center;
+            gap:.6rem;
+            padding:.55rem;
+            border-radius:8px;
+            color: #061933ff;
+            text-decoration:none;
+            cursor:pointer;
+        }
+        .menu-item:hover { background:#f1f5f9; color: #0f172a; }
+        .menu-divider { height:1px; background:#e2e8f0; margin:.45rem 0; border-radius:1px; }
+        .avatar { width:36px; height:36px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-weight:700; color:#0f172a; background:linear-gradient(90deg,#fde68a,#fdba74); }
+        .small { font-size:.85rem; color: #475569; }
+        @media (max-width:1024px){
+            .nav-links { display:none; }
+            .nav-cta { display:none; }
+        }
+        @media (max-width:640px){
+            .menu-panel{ margin:64px 12px 0 12px; width:auto }
+            .navbar{ padding:.6rem }
+            .brand-copy{ display:none; }
+            .brand{ gap:.5rem; }
+            .mobile-quick-links{ display:flex; align-items:center; gap:1.9rem; margin-left:-100px; }
+            .mobile-quick-links a{ font-size:14px; font-weight:800; color: #0f172a; text-decoration:none; padding:6px 0; border-radius:0; background:transparent; border:none; }
+        }
+    </style>
+
+    <!-- Global loader overlay (visible until window load) -->
+    <div id="globalLoader" aria-label="Loading" role="status">
+        <div class="loader-ring"></div>
+    </div>
+
+    {% set acct = session.get('display_name') or session.get('user') or None %}
+    <div class="navbar">
+        <!-- Logo with dynamic redirect -->
+        <span id="logo" class="brand" title="BATTLE-X">
+            <img src="{{ url_for('static', filename='images/navlogo.webp') }}" alt="BATTLE-X" style="height:30px;width:auto;object-fit:contain;box-shadow:none;border-radius:0;" />
+            <span class="brand-copy">
+                <span class="brand-name">BATTLE-X</span>
+                
+            </span>
+        </span>
+
+        <div class="nav-links" aria-label="Primary">
+            <a href="{{ url_for('freefire') }}">Free Fire</a>
+            <a href="{{ url_for('bgmi') }}">BGMI</a>
+            <a href="{{ url_for('valorant') }}">Valorant</a>
+            <a href="{{ url_for('smashkart') }}">Smash Kart</a>
+            <span class="nav-pill">Season IV</span>
+        </div>
+
+        <div class="mobile-quick-links" aria-label="Primary mobile links">
+            <a href="{{ url_for('home') }}">Home</a>
+            <a href="{{ url_for('freefire') }}">Free Fire</a>
+        </div>
+
+        <!-- Right side -->
+        <div style="display:flex;align-items:center;gap:.6rem">
+    {% if acct %}
+    <a href="/account" title="Account" style="display:flex;align-items:center;gap:.5rem;text-decoration:none; pointer-events: none;">
+        <div class="avatar">{{ acct[0]|upper }}</div>
+    </a>
+    {% endif %}
+    <button id="hamburgerBtn" class="hambtn" aria-haspopup="true" aria-expanded="false" aria-controls="navFloat" aria-label="Open menu">
+        <span class="hambars" aria-hidden="true"></span>
+    </button>
+</div>
+	</div>
+    <!-- Spacer -->
+    <div id="navSpacer" style="height:64px; width:100%;"></div>
+
+    <!-- Floating menu -->
+    <div id="navBackdrop" class="menu-backdrop" aria-hidden="true">
+        <div id="navFloat" class="menu-panel" role="menu" aria-hidden="true" tabindex="-1">
+            <div class="menu-item" style="cursor:default;">
+                <div class="avatar">{{ acct[0]|upper if acct }}</div>
+                <div>
+                    <div style="font-weight:700; color: #6a582bff;">{{ acct if acct else 'Guest' }}</div>
+                    <div class="small">{{ 'Signed in' if acct else 'Welcome' }}</div>
+                </div>
+            </div>
+
+            <div class="menu-divider"></div>
+
+            <a class="menu-item" href="{{ url_for('home') }}">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M3 10.5L12 4l9 6.5v8.5H3z" stroke="#1c1a1aff" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                <span>Home</span>
+            </a>
+
+            <a class="menu-item" href="{{ url_for('freefire') }}">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 3l7 4v10l-7 4-7-4V7l7-4z" stroke="#131212ff" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                <span>Free Fire lobby</span>
+            </a>
+
+            {% if acct %}
+                <a class="menu-item" href="/account"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM3 21a9 9 0 0 1 18 0" stroke="#0f172a" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Account</span></a>
+                <a class="menu-item" href="/settings"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z" stroke="#0f172a" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Settings</span></a>
+                <a class="menu-item" href="/history"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M3 6v6h6" stroke="#0f172a" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>History</span></a>
+                <div class="menu-divider"></div>
+                <a id="menuLogout" class="menu-item" href="{{ url_for('logout') }}" data-logout-url="{{ url_for('logout') }}">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M16 17l5-5-5-5M21 12H9" stroke="#0f172a" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    <span>Logout</span>
+                </a>
+            {% else %}
+                <a class="menu-item" href="{{ url_for('login', next=request.path) }}">Login</a>
+                <a class="menu-item" href="{{ url_for('signup', next=request.path) }}">Signup</a>
+            {% endif %}
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function(){
+            const btn = document.getElementById('hamburgerBtn');
+            const backdrop = document.getElementById('navBackdrop');
+            const panel = document.getElementById('navFloat');
+            const spacer = document.getElementById('navSpacer');
+            const loader = document.getElementById('globalLoader');
+
+            // Hide loader once page fully loaded (fallback after 2.5s)
+            function hideLoader(){ if(loader && !loader.classList.contains('hidden')) loader.classList.add('hidden'); }
+            window.addEventListener('load', hideLoader);
+            setTimeout(hideLoader, 2500);
+
+            function openMenu(){
+                backdrop.classList.add('open');
+                panel.classList.add('open');
+                backdrop.setAttribute('aria-hidden','false');
+                panel.setAttribute('aria-hidden','false');
+                btn.setAttribute('aria-expanded','true');
+            }
+            function closeMenu(){
+                panel.classList.remove('open');
+                backdrop.classList.remove('open');
+                backdrop.setAttribute('aria-hidden','true');
+                panel.setAttribute('aria-hidden','true');
+                btn.setAttribute('aria-expanded','false');
+            }
+            function toggleMenu(){ panel.classList.contains('open') ? closeMenu() : openMenu(); }
+
+            btn.addEventListener('click', e => { e.stopPropagation(); toggleMenu(); });
+            backdrop.addEventListener('click', e => { if(e.target === backdrop) closeMenu(); });
+            Array.from(document.querySelectorAll('#navFloat .menu-item')).forEach(item=> item.addEventListener('click', ()=> closeMenu()));
+
+            const logoutLink = document.getElementById('menuLogout');
+            if(logoutLink){
+                logoutLink.addEventListener('click', function(e){
+                    e.preventDefault(); closeMenu();
+                    const url = this.getAttribute('data-logout-url') || this.href;
+                    try{
+                        const form = document.createElement('form');
+                        form.method = 'POST';
+                        form.action = url;
+                        form.style.display = 'none';
+                        document.body.appendChild(form);
+                        form.submit();
+                    }catch(err){ window.location.href = url; }
+                });
+            }
+
+            // Adjust nav spacer
+            function adjustNavSpacer(){
+                const navbar = document.querySelector('.navbar');
+                if(!navbar || !spacer) return;
+                const h = Math.ceil(navbar.getBoundingClientRect().height) || 64;
+                const extraGap = 10;
+                const overlap = 8;
+                if(window.location.pathname === '/'){
+                    const spacerH = Math.max(0, h - overlap);
+                    spacer.style.height = spacerH + 'px';
+                    document.documentElement.style.setProperty('--nav-gap', (spacerH + 8) + 'px');
+                } else {
+                    const spacerH = h + extraGap;
+                    spacer.style.height = spacerH + 'px';
+                    document.documentElement.style.setProperty('--nav-gap', (spacerH + 4) + 'px');
+                }
+            }
+            adjustNavSpacer();
+            window.addEventListener('resize', adjustNavSpacer);
+
+            // Dynamic logo redirect
+            const logo = document.getElementById('logo');
+            if(logo){
+                logo.addEventListener('click', function(){
+                    const role = "{{ session.get('role', 'user') }}";
+                    if(role === 'admin'){
+                        window.location.href = "{{ url_for('admin_dashboard') }}";
+                    } else {
+                        window.location.href = "{{ url_for('home') }}";
+                    }
+                });
+            }
+        });
+    </script>
+</nav>

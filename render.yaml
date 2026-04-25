@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: battlex
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app --workers 2 --threads 4 --timeout 120
+    healthCheckPath: /
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: FLASK_ENV
+        value: production
+      - key: SESSION_COOKIE_SECURE
+        value: "1"
+      - key: DB_NAME
+        value: /var/data/gamezone.db
+      - key: UPLOAD_DIR
+        value: /var/data/uploads
+      - key: APP_TIMEZONE
+        value: Asia/Kolkata
+      - key: SECRET_KEY
+        generateValue: true
+    disk:
+      name: battlex-data
+      mountPath: /var/data
+      sizeGB: 1

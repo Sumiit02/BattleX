@@ -1,0 +1,1158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Register — Free Fire | BATTLE-X</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet" />
+  <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+  <style>
+	:root{
+  --bg-0:#f8fafc;
+  --bg-1:#e2e8f0;
+  --card:#ffffff;
+  --accent:#f97316;
+  --accent-2:#fbbf24;
+  --primary:#0f172a;
+  --muted:#64748b;
+  --border:#e2e8f0;
+  --shadow:0 18px 38px rgba(148,163,184,0.22);
+  --shadow-strong:0 22px 48px rgba(249,115,22,0.18);
+  --danger:#ef4444;
+}
+
+body{
+  margin:0;
+  font-family:'Poppins',sans-serif;
+  color:var(--primary);
+  background:linear-gradient(180deg,var(--bg-0), var(--bg-1));
+  min-height:100vh;
+  overflow-x:hidden;
+}
+
+/* Page layout */
+.page{max-width:1200px;margin:16px auto;padding:20px}
+.grid-2{display:grid;grid-template-columns:340px 1fr;gap:20px}
+@media (max-width: 900px){
+  .grid-2{grid-template-columns:1fr}
+}
+@media (max-width: 768px){
+  .page{margin:5px auto;padding:18px 14px}
+  .form-card{padding:20px 16px}
+  .info-card{padding:18px 16px}
+  .mode-tabs{flex-wrap:wrap;gap:12px}
+  .mode-pill{flex:1 1 calc(50% - 12px);text-align:center}
+  .event-image{height:160px}
+}
+@media (max-width: 560px){
+  .form-card{padding:18px 14px}
+  .info-card{padding:16px}
+  #formTitle{font-size:1.05rem}
+  .muted.small{font-size:0.85rem}
+  .player-card{padding:16px}
+  .mode-pill{padding:11px 14px}
+}
+@media (max-width: 480px){
+  .page{padding:12px 10px}
+  .mode-tabs{gap:10px}
+  #brOptions>div,#csOptions>div{flex-direction:column}
+  .actions{flex-direction:column;align-items:stretch;gap:10px}
+  .actions .btn{width:100%}
+  .event-image{height:150px}
+  input,textarea,select{height:50px;padding:12px 14px;font-size:0.98rem}
+}
+
+/* Rules overlay */
+.rules-backdrop{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(15,23,42,0.35);backdrop-filter:blur(2px);z-index:1200;padding:16px;box-sizing:border-box}
+.rules-backdrop.show{display:flex}
+.rules-modal{position:relative;width:min(900px,100%);max-height:90vh;overflow:hidden;background:#ffffff;border:1px solid var(--border);border-radius:18px;box-shadow:0 20px 52px rgba(0,0,0,0.22);padding:22px 22px 26px;animation:zoomIn .25s ease;display:flex;flex-direction:column}
+.rules-scroll{max-height:70vh;overflow-y:auto;padding-right:6px;margin-top:14px;}
+.rules-close{position:absolute;top:10px;right:12px;border:none;background:transparent;font-size:22px;color:#94a3b8;cursor:pointer}
+.rules-close:hover{color:#0f172a}
+.rules-trigger{position:fixed;right:18px;bottom:18px;padding:12px 16px;border-radius:999px;border:1px solid #f59e0b;background:linear-gradient(120deg,#f97316,#fbbf24);color:#0b0b0b;font-weight:800;box-shadow:0 12px 30px rgba(249,115,22,0.26);cursor:pointer;z-index:1100}
+
+/* ==== Left Card (Tournament Info) ==== */
+.info-card{
+  background:transparent;
+  border:none;
+  border-radius:0;
+  padding:8px 0 12px;
+  box-shadow:none;
+  transition:none;
+}
+.info-card:hover{transform:none;box-shadow:none;}
+
+.event-image{
+  width:100%;height:130px;border-radius:10px;
+  object-fit:cover;background:#e2e8f0;
+}
+.info-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:10px}
+.info-chip{display:flex;flex-direction:column;background:#f8fafc;border:1px solid var(--border);border-radius:10px;padding:10px 12px;gap:4px}
+.info-chip .label{font-size:0.78rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em}
+.info-chip .value{font-weight:700;color:var(--primary)}
+
+/* ==== Registration Form Card ==== */
+.form-card{
+  background:transparent;
+  border:none;
+  border-radius:0;
+  padding:18px 20px;
+  box-shadow:none;
+  position:static;
+  overflow:visible;
+  animation:none;
+}
+.form-card:before{display:none;}
+
+/* Form visual */
+label{
+  display:block;
+  margin-bottom:6px;
+  font-weight:600;
+  color:var(--primary);
+}
+
+/* ✅ Updated inputs */
+input,
+textarea,
+select {
+  width: 100%;
+  height: 55px;
+  padding: 14px;
+  padding-left: 18px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: #ffffff;
+  color: var(--primary);
+  font-size: 1rem;
+  line-height: 55px;
+  box-sizing: border-box;
+}
+
+input::placeholder,textarea::placeholder {
+  color: var(--muted);
+  opacity: 0.9;
+  padding-left: 14px;
+}
+
+input:focus,select:focus{
+  border-color:#f59e0b;
+  background:#fffdf7;
+  box-shadow:0 0 0 4px rgba(249,115,22,0.16);
+  outline:none;
+}
+input[readonly]{
+  background:#f8fafc !important;
+  color:#f59e0b !important;
+}
+
+/* Tabs (Game Type & BR type) */
+.mode-tabs{display:flex;gap:10px;margin:10px 0 18px}
+.mode-pill{
+  padding:12px 18px;
+  background:#f8fafc;
+  border-radius:14px;
+  font-weight:600;
+  cursor:pointer;
+  transition:.25s ease;
+  border:1px solid var(--border);
+  color:var(--primary);
+}
+.mode-pill:hover{
+  transform:scale(1.05);
+  background:#fff7ed;
+}
+.mode-pill.active{
+  background:linear-gradient(145deg,#f97316,#facc15);
+  box-shadow:0 14px 32px -18px rgba(249,115,22,0.35);
+  color:#0f172a;
+  border:1px solid #f59e0b;
+}
+
+/* Player Cards */
+.player-card{
+  background:transparent;
+  border:none;
+  border-radius:0;
+  padding:0;
+  margin-bottom:14px;
+  box-shadow:none;
+}
+.player-card:hover{
+  transform:none;
+  box-shadow:none;
+}
+.player-title{
+  font-weight:700;font-size:1.02rem;
+  color:var(--primary);margin-bottom:12px;
+}
+
+/* Buttons */
+.actions{margin-top:18px;display:flex;gap:12px;justify-content:flex-end}
+.btn{
+  padding:12px 22px;border-radius:12px;font-weight:700;
+  letter-spacing:.03em;cursor:pointer;border:none;
+  transition:.2s ease;
+}
+.btn-primary{
+  background:linear-gradient(135deg,#f97316,#fbbf24);
+  box-shadow:0 16px 36px -18px rgba(249,115,22,0.28);
+  color:#0f172a;
+  border:1px solid #f59e0b;
+}
+.btn-primary:hover{
+  transform:translateY(-2px) scale(1.03);
+  box-shadow:0 20px 50px -16px rgba(249,115,22,0.34);
+}
+.btn-ghost{
+  background:#f8fafc;
+  border:1px solid var(--border);
+  color:var(--primary);
+}
+.btn-ghost:hover{
+  background:#fff7ed;
+}
+
+/* Errors */
+.error{
+  background:rgba(248,113,113,0.12);
+  border:1px solid rgba(248,113,113,0.4);
+  box-shadow:0 12px 30px -24px rgba(248,113,113,0.3);
+  color:#b91c1c;padding:10px 14px;
+  border-radius:10px;
+  margin-top:12px;display:none;
+}
+
+.muted{color:var(--muted);}
+.muted.small{font-size:0.9rem;color:var(--muted);} 
+.note{color:var(--muted);font-size:0.95rem;margin-top:6px}
+
+.input-error{border-color:var(--danger) !important; box-shadow:0 0 0 3px rgba(239,68,68,0.2) !important; background:#fff1f2 !important;}
+.error-icon{display:none;color:var(--danger);font-weight:800;font-size:0.9rem;}
+.has-error .error-icon{display:inline;}
+.has-error .accordion-header{color:var(--danger);}
+
+.section-block{
+  background:transparent;
+  border:none;
+  border-radius:0;
+  padding:0 0 12px;
+  box-shadow:none;
+  margin-bottom:12px;
+}
+.section-title{font-weight:800;font-size:1rem;margin:0 0 6px 0;display:flex;align-items:center;gap:8px}
+.section-sub{color:var(--muted);font-size:0.92rem;margin:0 0 10px 0}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;font-size:0.78rem;font-weight:700;color:#0f172a;background:linear-gradient(135deg,#f97316,#facc15);box-shadow:0 6px 16px rgba(249,115,22,0.24);}
+
+.accordion{
+  border:none;
+  border-radius:0;
+  background:transparent;
+  overflow:hidden;
+  margin-bottom:12px;
+}
+.accordion-header{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:10px 0;
+  cursor:pointer;
+  font-weight:700;
+  border-bottom:1px solid var(--border);
+}
+.accordion-body{padding:10px 0;display:none}
+.accordion.open .accordion-body{display:block}
+.accordion.open .accordion-header{background:transparent}
+.primary-player{
+  border:none;
+  border-radius:0;
+  background:transparent;
+  padding:10px 0;
+  margin-bottom:10px;
+}
+.tag{display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border-radius:999px;background:#f1f5f9;font-weight:700;font-size:0.78rem;color:#0f172a}
+
+/* Small utilities */
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:650px){ .two-col{grid-template-columns:1fr} }
+
+/* Fade animation */
+@keyframes fadeInUp{
+  from{opacity:0;transform:translateY(18px)}
+  to{opacity:1;transform:translateY(0)}
+}
+
+
+ 	</style>
+</head>
+<body>
+  {% include '_navbar.html' %}
+
+  <!-- Rules overlay (opens first) -->
+  <button id="openRulesBtn" class="rules-trigger" aria-haspopup="dialog">📜 Rules</button>
+  <div id="rulesBackdrop" class="rules-backdrop show" role="dialog" aria-modal="true">
+    <div class="rules-modal">
+      <button id="closeRulesBtn" class="rules-close" aria-label="Close rules">✕</button>
+      <h2 style="margin-top:0;font-size:1.4rem;font-weight:800;color:#f97316">Event Rules</h2>
+      <p class="muted" style="margin-top:4px">Please review before completing your registration.</p>
+      <div style="display:grid;gap:10px;margin-top:14px;font-size:0.95rem;color:#0f172a">
+        <div><strong>Event:</strong> {{ event.title if event else 'Free Fire Tournament' }}</div>
+        <div><strong>Mode:</strong> {{ event.mode if event else 'BR' }}</div>
+        <div><strong>Entry fee:</strong> ₹{{ event.entry_fee if event and event.entry_fee is not none else 0 }}</div>
+        <div><strong>Prize pool:</strong> {{ '₹' ~ event.prize_pool if event and event.prize_pool else 'Shared pool announced in lobby' }}</div>
+        <div><strong>Schedule:</strong> {{ (event.start_time|friendly_date if event and event.start_time else 'Schedule TBA') }}</div>
+      </div>
+
+      {% set rules_text = '' %}
+      {% if event %}
+        {% if event.rules is defined and event.rules %}
+          {% set rules_text = event.rules %}
+        {% elif event.get is defined and event.get('rules') %}
+          {% set rules_text = event.get('rules') %}
+        {% elif 'rules' in event %}
+          {% set rules_text = event['rules'] %}
+        {% endif %}
+      {% endif %}
+      {% set default_rules_html %}
+        <ol style="margin-top:10px;padding-left:18px;line-height:1.6;color:#334155">
+          <li>Register with correct in-game ID and squad details; edits after check-in may be rejected.</li>
+          <li>No hacks, macros, emulators, or third-party tools; violations lead to disqualification.</li>
+          <li>Join the provided lobby/room within the given time; late joins are marked absent.</li>
+          <li>Follow admin instructions for screenshots/proof; disputes must be raised within 15 minutes.</li>
+          <li>Prize payouts use the submitted UPI; mismatched details can delay or void payouts.</li>
+        </ol>
+      {% endset %}
+      <div class="rules-scroll" id="rulesHtmlBlock">
+        {% if rules_text %}
+          {{ rules_text | safe }}
+        {% else %}
+          {{ default_rules_html | safe }}
+        {% endif %}
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:14px">
+        <button id="rulesAcceptBtn" class="btn btn-primary" type="button">I agree, continue</button>
+      </div>
+    </div>
+  </div>
+
+  {% set locked_mode_label = (event.title if event and event.title else (event.mode if event else (selected_mode if selected_mode else None))) %}
+  <div class="page" data-aos="fade-up">
+    <div class="grid-2">
+      <!-- Left: Tournament info -->
+      <aside class="info-card" aria-label="Event information">
+        <img id="eventImage" src="{{ (event.image if event else url_for('static', filename='images/freefire.webp')) }}" alt="event" class="event-image" />
+        <h2 style="margin-top:10px;font-family:'Orbitron',sans-serif;font-weight:700">{{ event.title if event else 'Free Fire Tournament' }}</h2>
+        <p class="muted" style="margin:6px 0 10px">{{ event.description or 'Compete and win exciting prizes.' }}</p>
+        <div class="info-grid">
+          <div class="info-chip">
+            <span class="label">Mode</span>
+            <span class="value" id="eventModeDisplay">{{ event.mode if event else 'BR Solo' }}</span>
+          </div>
+          <div class="info-chip">
+            <span class="label">Date</span>
+            <span class="value" id="eventDateDisplay">{{ event.date if event else 'TBD' }}</span>
+          </div>
+          <div class="info-chip">
+            <span class="label">Slots</span>
+            <span class="value" id="slotsDisplay">{{ event.slots_left if event else '—' }} / {{ event.max_slots if event else '—' }}</span>
+          </div>
+          <div class="info-chip">
+            <span class="label">Prize Pool</span>
+            <span class="value" id="prizeDisplay">{{ event.prize or (event.prize_pool if event else '₹ —') }}</span>
+          </div>
+          <div class="info-chip">
+            <span class="label">Entry Fee</span>
+            <span class="value" id="entryDisplay">₹{{ event.entry_fee if event and event.entry_fee is not none else 0 }}</span>
+          </div>
+          <div class="info-chip">
+            <span class="label">Status</span>
+            <span class="value" id="statusDisplay">{{ 'Open' if event and event.slots_left else 'TBD' }}</span>
+          </div>
+        </div>
+        <p class="note" style="margin-top:10px" id="modeTip">Tip: Choose a mode and we'll tell you exactly how many teammates to add.</p>
+      </aside>
+
+      <!-- Right: Registration form -->
+      <main>
+        <div class="form-card" role="form" aria-labelledby="formTitle">
+          <h3 id="formTitle" style="font-family:'Orbitron',sans-serif;margin:0">Register — <span class="muted small">{{ event.title if event else 'Free Fire' }}</span></h3>
+
+          <div class="error" id="formError">Please complete all required fields.</div>
+
+          <!-- Mode selector -->
+          <div style="margin-top:14px">
+            <div class="muted small">Game Type</div>
+            {% if locked_mode_label %}
+              <div id="lockedModeBanner" class="mode-pill active" style="display:inline-flex;align-items:center;gap:8px;background:linear-gradient(135deg,#f97316,#facc15);color:#111827;font-weight:700;">
+                Locked to {{ locked_mode_label }}
+              </div>
+              <p class="text-xs text-emerald-600 mt-2" id="lockedModeHelper">
+                {% if event and event.title %}Registering directly into {{ event.title }}{% else %}Registration mode is preset{% endif %}
+              </p>
+            {% else %}
+              <div class="mode-tabs" role="tablist" aria-label="Mode selector">
+                <div class="mode-pill active" data-mode="BR" id="tabBR" tabindex="0">BR</div>
+                <div class="mode-pill" data-mode="CS" id="tabCS" tabindex="0">Clash Squad</div>
+              </div>
+            {% endif %}
+          </div>
+
+          <!-- BR Options -->
+          {% if not locked_mode_label %}
+            <div id="brOptions" style="margin-top:10px">
+              <div class="muted small">BR — choose variant</div>
+              <div style="display:flex;gap:8px;margin-top:8px">
+                <div class="mode-pill active" data-br="solo" id="brSolo">Solo</div>
+                <div class="mode-pill" data-br="duo" id="brDuo">Duo</div>
+                <div class="mode-pill" data-br="squad" id="brSquad">Squad</div>
+              </div>
+            </div>
+          {% endif %}
+
+          <!-- CS Options -->
+          {% if not locked_mode_label %}
+            <div id="csOptions" style="margin-top:12px;display:none">
+              <div class="muted small">Clash Squad — team size</div>
+              <div style="display:flex;gap:8px;margin-top:8px">
+                <select id="csTeamSize" style="padding:10px;border-radius:8px;border:1px solid #e6eef8">
+                  <option value="1">1v1</option><option value="2">2v2</option><option value="3">3v3</option><option value="4">4v4</option>
+                </select>
+              </div>
+            </div>
+          {% endif %}
+
+          <!-- Player form area -->
+          <form id="regForm" class="mt-4" onsubmit="return false;">
+            <input type="hidden" name="mode" id="modeInput" value="BR">
+            <input type="hidden" name="br_variant" id="brVariant" value="solo">
+            <input type="hidden" name="team_size" id="teamSizeInput" value="1">
+
+            <div class="section-block">
+              <p class="section-title">Contact & Prize Payout Details</p>
+              <p class="section-sub">We use these to send confirmations and prize payouts.</p>
+              <div class="two-col">
+                <div>
+                  <label>Your Email</label>
+                  <input type="email" id="reg_email" placeholder="you@example.com" required />
+                </div>
+                <div>
+                  <label>Captain Game UID (Player 1)</label>
+                  <input type="text" id="player_1_id" placeholder="Game ID of Player 1" required />
+                </div>
+              </div>
+              <div style="margin-top:12px">
+                <label>UPI ID for prize payouts</label>
+                <input type="text" id="payout_upi" placeholder="yourname@bank" inputmode="text" autocomplete="off" required />
+              </div>
+            </div>
+
+            <div class="section-block" id="rosterBlock">
+              <div class="section-title" style="margin-bottom:2px">Team Roster <span class="pill" id="rosterPill">BR</span></div>
+              <p class="section-sub" id="dynamicNote">Add player details as required by selected mode.</p>
+              <div id="playersContainer" aria-live="polite"></div>
+            </div>
+
+            <div class="section-block" style="margin-bottom:8px">
+              <p class="section-title" style="margin-bottom:4px">Payment Confirmation</p>
+              <p class="section-sub" style="margin-bottom:10px">Review your team, then continue to payment.</p>
+              <div class="actions" style="margin-top:8px">
+                <button id="btnPay" class="btn btn-primary" type="button">Proceed to Pay</button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </main>
+    </div>
+  </div>
+
+<script>
+AOS.init({ duration: 140, once: true });
+
+// ====== Elements & state ======
+const tabBR = document.getElementById('tabBR'), tabCS = document.getElementById('tabCS');
+const brOptions = document.getElementById('brOptions'), csOptions = document.getElementById('csOptions');
+const modeTabs = document.querySelector('.mode-tabs');
+const brPills = { solo: document.getElementById('brSolo'), duo: document.getElementById('brDuo'), squad: document.getElementById('brSquad') };
+const csTeamSize = document.getElementById('csTeamSize');
+const modeInput = document.getElementById('modeInput');
+const brVariant = document.getElementById('brVariant');
+const teamSizeInput = document.getElementById('teamSizeInput');
+const playersContainer = document.getElementById('playersContainer');
+const formError = document.getElementById('formError');
+const btnPay = document.getElementById('btnPay');
+const player1Top = document.getElementById('player_1_id');
+const payoutUpiInput = document.getElementById('payout_upi');
+const lockedModeBanner = document.getElementById('lockedModeBanner');
+const lockedModeHelper = document.getElementById('lockedModeHelper');
+const modeTip = document.getElementById('modeTip');
+const slotsDisplay = document.getElementById('slotsDisplay');
+const entryDisplay = document.getElementById('entryDisplay');
+const prizeDisplay = document.getElementById('prizeDisplay');
+const statusDisplay = document.getElementById('statusDisplay');
+const eventDateDisplay = document.getElementById('eventDateDisplay');
+const sessionUser = {{ session_user|default('')|tojson|safe }};
+
+// initial state
+let currentMode = 'BR';
+let currentBrVariant = 'solo';
+let currentTeamSize = 1;
+
+const formatSlotsLabel = (slotsLeft, maxSlots) => {
+  const left = Number(slotsLeft);
+  const max = Number(maxSlots);
+  if(Number.isFinite(max) && max > 0){
+    if(!Number.isFinite(left)) return `${max} slots`;
+    if(left <= 0) return 'Full (Waiting List)';
+    if(left > max) return `${max} / ${max} (Closed)`;
+    return `${left} / ${max}`;
+  }
+  if(Number.isFinite(left)){
+    if(left <= 0) return 'Full (Waiting List)';
+    return `${left} open`;
+  }
+  return 'TBD';
+};
+
+const formatStatusLabel = (slotsLeft, maxSlots, isOpen) => {
+  if(isOpen === 0 || isOpen === false) return 'Closed';
+  const left = Number(slotsLeft);
+  const max = Number(maxSlots);
+  if(Number.isFinite(max) && max > 0){
+    if(left <= 0) return 'Waitlist';
+    return 'Open';
+  }
+  if(Number.isFinite(left) && left <= 0) return 'Waitlist';
+  return 'Open';
+};
+
+function attachAccordions(){
+  const accs = playersContainer.querySelectorAll('[data-accordion]');
+  accs.forEach(acc => {
+    const btn = acc.querySelector('[data-acc-btn]');
+    if(!btn) return;
+    btn.onclick = () => acc.classList.toggle('open');
+  });
+}
+
+const updateLockBanner = (labelText) => {
+  if (!isModeLocked || !lockedModeBanner) return;
+  lockedModeBanner.textContent = labelText || initialLockedLabel || (eventPayload && eventPayload.mode) || 'Selected Event';
+  if (lockedModeHelper) {
+    const pieces = [];
+    if (eventPayload && eventPayload.title) {
+      pieces.push(`Registering for ${eventPayload.title}`);
+    }
+    if (labelText || initialLockedLabel) {
+      pieces.push(labelText || initialLockedLabel);
+    } else if (selectedModeRaw) {
+      pieces.push(selectedModeRaw);
+    }
+    lockedModeHelper.textContent = pieces.length ? pieces.join(' • ') : 'Registrations are tied to this event.';
+  }
+};
+
+// server-provided values (Jinja)
+const eventPayload = {{ event|tojson|default('null')|safe }};
+const selectedModeRaw = {{ selected_mode|tojson|default('null')|safe }};
+const initialLockedLabel = {{ locked_mode_label|tojson|default('null')|safe }};
+const isEventLocked = Boolean(eventPayload && eventPayload.id);
+const isModeLocked = Boolean(initialLockedLabel);
+let selectedEventId = null;
+if (eventPayload && typeof eventPayload.id !== 'undefined') {
+  selectedEventId = Number(eventPayload.id) || null;
+}
+if (!selectedEventId) {
+  try {
+    const qp = new URLSearchParams(window.location.search);
+    const fromQuery = qp.get('event_id');
+    if (fromQuery) {
+      const parsed = Number(fromQuery);
+      if (!Number.isNaN(parsed)) {
+        selectedEventId = parsed;
+      }
+    }
+  } catch (err) {
+    selectedEventId = null;
+  }
+}
+
+if (isModeLocked) {
+  updateLockBanner(initialLockedLabel || selectedModeRaw || (eventPayload && eventPayload.mode));
+}
+
+// ====== helper: parse mode string ======
+function parseModeStr(raw){
+  if(!raw) return {};
+  const original = decodeURIComponent(String(raw)).trim();
+  const text = original.toUpperCase();
+
+  const vsMatch = text.match(/(\d+)\s*[V]\s*(\d+)/);
+  let vsTeamSize = null;
+  let vsExplicit = false;
+  if (vsMatch) {
+    const parsed = parseInt(vsMatch[1], 10);
+    if (!Number.isNaN(parsed)) {
+      vsTeamSize = parsed;
+      vsExplicit = true;
+    }
+  }
+
+  const hasSolo = /(SOLO|1V1)/.test(text);
+  const hasDuo = /(DUO|2V2)/.test(text);
+  const hasTrio = /(3V3)/.test(text);
+  const hasSquad = /(SQUAD|4V4)/.test(text);
+
+  const csKeywords = ['CS', 'CLASH SQUAD', 'CLASH', 'ARENA'];
+  if (csKeywords.some(keyword => text.includes(keyword))) {
+    let teamSize = vsTeamSize;
+    let teamExplicit = vsExplicit;
+    if (!teamSize) {
+      if (hasSolo) { teamSize = 1; teamExplicit = true; }
+      else if (hasDuo) { teamSize = 2; teamExplicit = true; }
+      else if (hasTrio) { teamSize = 3; teamExplicit = true; }
+      else if (hasSquad) { teamSize = 4; teamExplicit = true; }
+    }
+    if (!teamSize) teamSize = 4;
+    return { type: 'CS', teamSize, teamExplicit, rawLabel: original };
+  }
+
+  const brKeywords = ['BR', 'BATTLE ROYALE', 'FREE FIRE', 'BATTLE', 'CLASSIC'];
+  if (brKeywords.some(keyword => text.includes(keyword)) || /(SOLO|DUO|SQUAD)/.test(text)) {
+    let variant = 'solo';
+    let isVariantExplicit = false;
+    if (hasSquad) { variant = 'squad'; isVariantExplicit = true; }
+    else if (hasDuo) { variant = 'duo'; isVariantExplicit = true; }
+    else if (hasSolo) { variant = 'solo'; isVariantExplicit = true; }
+    const variantSize = { solo: 1, duo: 2, squad: 4 };
+    return { type: 'BR', variant, teamSize: variantSize[variant], isVariantExplicit, rawLabel: original };
+  }
+
+  return {};
+}
+
+// ====== helper: read ?mode= from URL if not server-provided ======
+function getModeFromQuery(){
+  try {
+    const qp = new URLSearchParams(window.location.search);
+    return qp.get('mode') || null;
+  } catch (e) {
+    return null;
+  }
+}
+
+// ====== UI functions ======
+function setActiveMode(mode){
+  currentMode = mode;
+  modeInput.value = mode;
+  if(mode === 'BR'){
+    if(brOptions) brOptions.style.display = isModeLocked ? 'none' : '';
+    if(csOptions) csOptions.style.display = 'none';
+    if(!isModeLocked){
+      if(!currentBrVariant) currentBrVariant='solo';
+      Object.values(brPills).forEach(el => el && el.classList.remove('active'));
+      if(brPills[currentBrVariant]) brPills[currentBrVariant].classList.add('active');
+      brOptions?.scrollIntoView({behavior:'smooth', block:'nearest'});
+    }
+  } else {
+    if(brOptions) brOptions.style.display = 'none';
+    if(csOptions) csOptions.style.display = isModeLocked ? 'none' : '';
+  }
+  if(!isModeLocked && tabBR && tabCS){
+    [tabBR, tabCS].forEach(t => t.classList.toggle('active', t.dataset.mode === mode));
+  }
+  renderPlayersSection();
+}
+
+// simplified mode application (always interactive)
+function applyModeConfig(info){
+	if(!info || !info.type) return;
+	if(info.type === 'CS'){
+		currentMode = 'CS';
+		currentTeamSize = info.teamSize || 1;
+    if(csTeamSize) csTeamSize.value = currentTeamSize;
+		brVariant.value = '';
+	}else{
+		currentMode = 'BR';
+		currentBrVariant = info.variant || 'solo';
+		const sizeMap = { solo:1, duo:2, squad:4 };
+		currentTeamSize = info.teamSize || sizeMap[currentBrVariant] || 1;
+    brVariant.value = currentBrVariant;
+	}
+  teamSizeInput.value = currentTeamSize;
+  setActiveMode(currentMode);
+  updateLockBanner(info && info.rawLabel ? info.rawLabel : (initialLockedLabel || selectedModeRaw || (eventPayload && eventPayload.mode)));
+}
+
+// Reset UI to defaults (free selection)
+function resetModeUI(){
+	currentMode = 'BR';
+	currentBrVariant = 'solo';
+	currentTeamSize = 1;
+	brVariant.value = 'solo';
+  if(csTeamSize) csTeamSize.value = '1';
+  if(tabBR) tabBR.style.display = '';
+  if(tabCS) tabCS.style.display = '';
+  if(modeTabs) modeTabs.style.display = '';
+  if(brOptions) brOptions.style.display = '';
+  if(csOptions) csOptions.style.display = 'none';
+  setActiveMode('BR');
+}
+
+// ====== initialize based on server or URL ======
+(function initMode(){
+  const updateDisplay = (label) => {
+    if(label) document.getElementById('eventModeDisplay').innerText = label;
+    if(eventPayload && eventPayload.image) document.getElementById('eventImage').src = eventPayload.image;
+    const slotsText = formatSlotsLabel(eventPayload ? eventPayload.slots_left : null, eventPayload ? eventPayload.max_slots : null);
+    if(slotsDisplay) slotsDisplay.innerText = slotsText;
+    if(entryDisplay && eventPayload){
+      const fee = (eventPayload.entry_fee || eventPayload.entryFee || 0);
+      entryDisplay.innerText = `₹${fee}`;
+    }
+    if(prizeDisplay && eventPayload){
+      const prizeVal = eventPayload.prize_pool || eventPayload.prize || '₹ —';
+      prizeDisplay.innerText = prizeVal;
+    }
+    if(statusDisplay && eventPayload){
+      statusDisplay.innerText = formatStatusLabel(eventPayload.slots_left, eventPayload.max_slots, eventPayload.is_open);
+    }
+    if(eventDateDisplay && eventPayload && eventPayload.date){
+      eventDateDisplay.innerText = eventPayload.date;
+    }
+  };
+
+  const candidates = [];
+  const pushCandidate = (value, display) => {
+    if(!value) return;
+    const str = String(value).trim();
+    if(!str) return;
+    candidates.push({ value: str, display: display || str });
+  };
+
+  try {
+    pushCandidate(selectedModeRaw, selectedModeRaw);
+
+    if(eventPayload){
+      pushCandidate(eventPayload.title, eventPayload.title);
+      pushCandidate(eventPayload.mode_label, eventPayload.mode_label);
+      pushCandidate(eventPayload.mode_details, eventPayload.mode_details);
+      pushCandidate(eventPayload.mode, eventPayload.mode);
+      pushCandidate(eventPayload.subtitle, eventPayload.subtitle);
+      pushCandidate(eventPayload.description, eventPayload.description);
+    }
+
+    pushCandidate(getModeFromQuery(), getModeFromQuery());
+
+    const parsedCandidates = [];
+    candidates.forEach(cand => {
+      const info = parseModeStr(cand.value);
+      if(info && info.type){
+        info.rawLabel = cand.display;
+        parsedCandidates.push({ info, display: cand.display });
+      }
+    });
+
+    const isExplicit = (details) => {
+      if(!details) return false;
+      if(details.type === 'BR'){
+        return Boolean(details.isVariantExplicit) || (details.teamSize && details.teamSize > 1);
+      }
+      if(details.type === 'CS'){
+        return Boolean(details.teamExplicit) || (details.teamSize && details.teamSize > 1);
+      }
+      return true;
+    };
+
+    const strong = parsedCandidates.find(c => isExplicit(c.info));
+    if(strong){
+      applyModeConfig(strong.info);
+      updateDisplay(strong.display);
+      return;
+    }
+
+    const fallback = parsedCandidates[0];
+    if(fallback){
+      applyModeConfig(fallback.info);
+      updateDisplay(fallback.display);
+      return;
+    }
+
+    if(!isModeLocked){
+      resetModeUI();
+    }
+  } catch (e) {
+    console.warn('Mode init failed', e);
+    if(!isModeLocked){
+      resetModeUI();
+    }
+  }
+})();
+
+// ====== Tab clicks (always switchable) ======
+if(!isModeLocked && tabBR && tabCS){
+  tabBR.addEventListener('click', ()=>{
+    applyModeConfig({ type: 'BR', variant: 'solo', teamSize: 1 });
+  });
+  tabCS.addEventListener('click', ()=>{
+    const size = parseInt(csTeamSize.value, 10) || 1;
+    applyModeConfig({ type: 'CS', teamSize: size });
+  });
+}
+
+// ====== BR pill clicks ======
+if(!isModeLocked){
+  Object.keys(brPills).forEach(k=>{
+    const pill = brPills[k];
+    if(!pill) return;
+    pill.addEventListener('click', ()=>{
+      if(currentMode !== 'BR') return;
+      Object.values(brPills).forEach(el => el && el.classList.remove('active'));
+      pill.classList.add('active');
+      currentBrVariant = k;
+      const map = { solo:1, duo:2, squad:4 };
+      currentTeamSize = map[k] || 1;
+      teamSizeInput.value = currentTeamSize;
+      renderPlayersSection();
+    });
+  });
+}
+
+// ====== CS team size change ======
+if(csTeamSize && !isModeLocked){
+  csTeamSize.addEventListener('change', ()=>{
+    const size = parseInt(csTeamSize.value, 10) || 1;
+    currentTeamSize = size;
+    if(currentMode === 'CS') teamSizeInput.value = size;
+    renderPlayersSection();
+  });
+}
+
+// ====== Build player blocks ======
+function renderPlayersSection(){
+  const mode = currentMode;
+  const plural = currentTeamSize === 1 ? '' : 's';
+  const legend = mode === 'BR' ? 'Battle Royale roster' : 'Clash Squad roster';
+  const detail = mode === 'BR'
+    ? `${currentTeamSize} Battle Royale player${plural} required`
+    : `${currentTeamSize} Clash Squad player${plural} (${currentTeamSize}v${currentTeamSize})`;
+  const prefix = isModeLocked ? 'Locked event requirement • ' : '';
+
+  const sections = [`
+    <div class="p-4 mb-3 bg-slate-50 border border-slate-200 rounded-xl shadow-sm">
+      <p class="text-[11px] uppercase tracking-wide text-slate-500">${legend}</p>
+      <p class="text-sm text-slate-700 mt-1">${prefix}${detail}</p>
+    </div>
+  `];
+
+  if (mode === 'CS') {
+    sections.push(`
+      <div style="margin-bottom:12px">
+        <div class="player-title flex items-center justify-between" style="padding:0">
+          <span>Team Contact</span>
+          <span class="text-[11px] uppercase tracking-wide text-emerald-600">Required</span>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3" style="margin-top:8px">
+          <div>
+            <label>Team Name</label>
+            <input id="team_name" placeholder="Team name (required)" />
+          </div>
+          <div>
+            <label>Team Email</label>
+            <input id="team_email" type="email" placeholder="team@example.com" />
+          </div>
+          <div>
+            <label>Primary Game ID (Player 1)</label>
+            <input id="player_1_id_cs" class="mirror-player1-id" readonly placeholder="Mirrors primary Game ID" />
+          </div>
+        </div>
+      </div>
+    `);
+  }
+
+  for (let i = 1; i <= currentTeamSize; i++) {
+    sections.push(makePlayerCard(i, mode));
+  }
+
+  playersContainer.innerHTML = sections.join('');
+  teamSizeInput.value = currentTeamSize;
+  document.getElementById('dynamicNote').innerText = prefix + (mode === 'BR'
+    ? `Provide ${currentTeamSize} BR player${plural} with in-game IDs and character names.`
+    : `Provide ${currentTeamSize} Clash Squad player${plural} plus the team contact details.`);
+  const rosterPill = document.getElementById('rosterPill');
+  if(rosterPill){
+    rosterPill.textContent = mode === 'BR' ? (currentBrVariant ? `BR • ${currentBrVariant.toUpperCase()}` : 'BR') : `CS • ${currentTeamSize}v${currentTeamSize}`;
+  }
+  updateModeTip();
+  syncPlayer1Mirrors();
+  attachAccordions();
+  attachInputClearHandlers(playersContainer);
+}
+
+function updateModeTip(){
+  if(!modeTip) return;
+  const plural = currentTeamSize === 1 ? '' : 's';
+  if(currentMode === 'BR'){
+    if(currentBrVariant === 'duo' || currentTeamSize === 2){
+      modeTip.textContent = 'Battle Royale Duo requires 2 players. Enter both players before submitting.';
+    } else if(currentBrVariant === 'squad' || currentTeamSize >= 4){
+      modeTip.textContent = 'Battle Royale Squad requires 4 players. Provide all four IDs and character names.';
+    } else {
+      modeTip.textContent = 'Battle Royale Solo is a single-player entry focused on your own ID.';
+    }
+  } else {
+    modeTip.textContent = `Clash Squad ${currentTeamSize}v${currentTeamSize} needs ${currentTeamSize} player${plural} plus a team contact.`;
+  }
+}
+
+// ====== makePlayerCard ======
+function makePlayerCard(index, mode){
+  const isPrimary = index === 1;
+  const slotLabel = mode === 'BR' ? `BR slot ${index}` : `CS slot ${index}`;
+  const helper = mode === 'BR'
+    ? (isPrimary ? 'Uses the primary contact Game ID' : 'Unique BR player credentials')
+    : (isPrimary ? 'Mirrors the primary contact Game ID' : 'Enter teammate credentials');
+
+  let idField = '';
+  let nameField = '';
+  if (mode === 'BR') {
+    if (isPrimary) {
+      idField = `<input id="br_player_1_id_display" class="mirror-player1-id" readonly placeholder="Mirrors primary Game ID" />`;
+      nameField = `<input id="br_player_1_name" placeholder="Character Name" />`;
+    } else {
+      idField = `<input id="br_player_${index}_id" placeholder="Game ID (player ${index})" />`;
+      nameField = `<input id="br_player_${index}_name" placeholder="Character Name (player ${index})" />`;
+    }
+  } else {
+    idField = `<input id="player_${index}_id" ${isPrimary ? 'readonly class="mirror-player1-id" placeholder="Mirrors primary Game ID"' : 'placeholder="Game ID"'} />`;
+    nameField = `<input id="player_${index}_name" placeholder="Character Name" />`;
+  }
+
+  if (isPrimary) {
+    return `
+      <div class="primary-player">
+        <div class="player-title flex items-center justify-between" style="padding:0">
+          <span>Player ${index} <span class="tag">Captain</span></span>
+          <span class="text-[11px] uppercase tracking-wide text-slate-500">${slotLabel}</span>
+        </div>
+        <p class="text-[11px] text-slate-600 mb-3">${helper}</p>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div>
+            <label>Game ID</label>
+            ${idField}
+          </div>
+          <div>
+            <label>Character Name</label>
+            ${nameField}
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="accordion" data-accordion data-slot="${index}">
+      <div class="accordion-header" data-acc-btn>
+        <div class="flex items-center gap-2"><span>Player ${index}</span><span class="error-icon" aria-hidden="true">!</span></div>
+        <span class="text-[11px] uppercase tracking-wide text-slate-500">▼</span>
+      </div>
+      <div class="accordion-body">
+        <p class="text-[11px] text-slate-600 mb-3">${helper}</p>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div>
+            <label>Game ID</label>
+            ${idField}
+          </div>
+          <div>
+            <label>Character Name</label>
+            ${nameField}
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// ====== mirror Player1 top to cards ======
+function syncPlayer1Mirrors(){
+  const mirrors = document.querySelectorAll('.mirror-player1-id');
+  const val = (player1Top && player1Top.value) ? player1Top.value : '';
+  mirrors.forEach(m => m.value = val);
+}
+player1Top.addEventListener('input', syncPlayer1Mirrors);
+attachInputClearHandlers();
+
+function clearErrors(){
+  formError.style.display = 'none';
+  document.querySelectorAll('.input-error').forEach(el => el.classList.remove('input-error'));
+  document.querySelectorAll('[data-accordion].has-error').forEach(el => el.classList.remove('has-error'));
+}
+
+function attachInputClearHandlers(root=document){
+  const inputs = root.querySelectorAll('input, textarea, select');
+  inputs.forEach(inp => {
+    if (inp.dataset._clearBound) return;
+    inp.dataset._clearBound = '1';
+    inp.addEventListener('input', ()=>{
+      inp.classList.remove('input-error');
+      const acc = inp.closest('[data-accordion].has-error');
+      if(acc) acc.classList.remove('has-error');
+    });
+  });
+}
+
+function markAccordionError(slot){
+  const acc = playersContainer.querySelector(`[data-accordion][data-slot="${slot}"]`);
+  if(acc){
+    acc.classList.add('has-error');
+    const btn = acc.querySelector('[data-acc-btn]');
+    if(btn && !acc.classList.contains('open')) acc.classList.add('open');
+  }
+}
+
+// ====== Pay / submit ======
+btnPay.addEventListener('click', async ()=>{
+  clearErrors();
+
+  // basic validation common fields
+  const regEmail = document.getElementById('reg_email').value.trim();
+  const p1id = player1Top.value.trim();
+  const payoutUpi = (payoutUpiInput && payoutUpiInput.value ? payoutUpiInput.value : '').trim().toLowerCase();
+
+  if(!regEmail || !p1id){
+    if(!regEmail) document.getElementById('reg_email').classList.add('input-error');
+    if(!p1id) player1Top.classList.add('input-error');
+    return;
+  }
+
+  if(!payoutUpi){
+    payoutUpiInput.classList.add('input-error');
+    return;
+  }
+
+  const upiPattern = /^[A-Za-z0-9._-]{2,}@[A-Za-z0-9]{2,}$/;
+  if(!upiPattern.test(payoutUpi)){
+    payoutUpiInput.classList.add('input-error');
+    return;
+  }
+
+  // assemble payload
+  const payload = { email: regEmail, game_id: p1id, mode: currentMode, amount: 100, payout_upi: payoutUpi };
+  if (selectedEventId) {
+    payload.event_id = selectedEventId;
+  }
+
+  if(currentMode === 'BR'){
+    payload.team_size = currentTeamSize;
+    payload.character_name = (document.getElementById('br_player_1_name')||{value:''}).value.trim();
+
+    // additional players
+    for(let i=2;i<=currentTeamSize;i++){
+      const idEl = document.getElementById(`br_player_${i}_id`);
+      const nmEl = document.getElementById(`br_player_${i}_name`);
+      payload[`br_player_${i}_id`] = idEl ? idEl.value.trim() : '';
+      payload[`br_player_${i}_name`] = nmEl ? nmEl.value.trim() : '';
+    }
+  } else {
+    // CS
+    payload.team_size = currentTeamSize;
+    payload.team_name = (document.getElementById('team_name')||{value:''}).value.trim();
+    payload.team_email = (document.getElementById('team_email')||{value:''}).value.trim() || regEmail;
+
+    // players (player 1 id from top field)
+    for(let i=1;i<=currentTeamSize;i++){
+      const pid = (i===1) ? p1id : (document.getElementById(`player_${i}_id`)||{value:''}).value.trim();
+      const pname = (document.getElementById(`player_${i}_name`)||{value:''}).value.trim();
+      payload[`player_${i}_id`] = pid;
+      payload[`player_${i}_name`] = pname;
+    }
+  }
+
+  // validation of required fields
+  // For CS: team_name required (even CS 1v1 per your B choice)
+  if(currentMode === 'CS'){
+    if(!payload.team_name){
+      (document.getElementById('team_name')||{}).classList.add('input-error');
+      return;
+    }
+  }
+
+  // ensure per-player IDs and names present
+  for(let i=1;i<=payload.team_size;i++){
+    if(currentMode === 'BR'){
+      if(i===1){
+        if(!payload.character_name){
+          (document.getElementById('br_player_1_name')||{}).classList.add('input-error');
+          return;
+        }
+      } else {
+        if(!payload[`br_player_${i}_id`] || !payload[`br_player_${i}_name`]){
+          if(!payload[`br_player_${i}_id`]) (document.getElementById(`br_player_${i}_id`)||{}).classList.add('input-error');
+          if(!payload[`br_player_${i}_name`]) (document.getElementById(`br_player_${i}_name`)||{}).classList.add('input-error');
+          markAccordionError(i);
+          return;
+        }
+      }
+    } else {
+      // CS: require both id and name for each player (player 1 id from top is already set)
+      if(!payload[`player_${i}_id`] || !payload[`player_${i}_name`]){
+        if(i===1){
+          (document.getElementById('player_1_id_cs')||{}).classList.add('input-error');
+        }
+        if(!payload[`player_${i}_id`]) (document.getElementById(`player_${i}_id`)||{}).classList.add('input-error');
+        if(!payload[`player_${i}_name`]) (document.getElementById(`player_${i}_name`)||{}).classList.add('input-error');
+        if(i>1) markAccordionError(i);
+        return;
+      }
+    }
+  }
+
+  // disable while processing
+  btnPay.disabled = true; btnPay.innerText = 'Preparing payment page...';
+
+  try {
+    // Save pending registration first, then route the user to the dedicated payment page.
+    const regResp = await fetch('/proceed_registration', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(payload)
+    });
+    const regJson = await regResp.json();
+    if(!regJson.success) throw new Error(regJson.error || 'Failed to save registration');
+
+    const regId = regJson.registration_id;
+    window.location.href = `/payment_page/${regId}`;
+  } catch(err) {
+    formError.innerText = 'Failed to continue to payment: ' + (err.message || err);
+    formError.style.display = 'block';
+    btnPay.disabled = false; btnPay.innerText = 'Proceed to Pay';
+  }
+});
+
+  // Rules modal logic
+  const rulesBackdrop = document.getElementById('rulesBackdrop');
+  const openRulesBtn = document.getElementById('openRulesBtn');
+  const closeRulesBtn = document.getElementById('closeRulesBtn');
+  const acceptRulesBtn = document.getElementById('rulesAcceptBtn');
+
+  function openRules(){
+    if(!rulesBackdrop) return;
+    rulesBackdrop.classList.add('show');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeRules(){
+    if(!rulesBackdrop) return;
+    rulesBackdrop.classList.remove('show');
+    document.body.style.overflow = '';
+  }
+
+  if(openRulesBtn) openRulesBtn.addEventListener('click', openRules);
+  if(closeRulesBtn) closeRulesBtn.addEventListener('click', closeRules);
+  if(acceptRulesBtn) acceptRulesBtn.addEventListener('click', closeRules);
+  if(rulesBackdrop) rulesBackdrop.addEventListener('click', (e)=>{ if(e.target === rulesBackdrop) closeRules(); });
+
+  // Show rules immediately on load for this event
+  openRules();
+</script>
+</body>
+</html>

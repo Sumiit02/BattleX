@@ -1,0 +1,160 @@
+{% extends 'admin_base.html' %}
+{% block title %}Admin • {{ event.title or 'Match Detail' }}{% endblock %}
+
+{% block content %}
+  <div class="flex flex-col gap-3 mb-8">
+    <a href="{{ url_for('admin_matches') }}" class="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-slate-700 transition">
+      <span class="px-2 py-1 rounded-lg bg-slate-100 border border-slate-200">←</span>
+      Back to match monitor
+    </a>
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div>
+        <p class="text-xs text-slate-500 uppercase tracking-wide">{{ event.mode or 'Mode' }}</p>
+        <h1 class="text-3xl font-bold text-slate-900">{{ event.title or 'Event players' }}</h1>
+        <p class="text-sm text-slate-600 mt-1">{{ event.scheduled_for or 'Schedule TBD' }}</p>
+      </div>
+      <div class="flex flex-wrap gap-3 text-sm">
+          <span class="px-4 py-2 rounded-xl bg-slate-100 border border-slate-200 text-slate-700">Status: {{ event.status|capitalize if event.status else 'Unknown' }}</span>
+          <span class="px-4 py-2 rounded-xl bg-slate-100 border border-slate-200 text-slate-700">Teams: {{ event.registrations or 0 }}</span>
+          <span class="px-4 py-2 rounded-xl bg-slate-100 border border-slate-200 text-slate-700">Players: {{ event.players_registered or 0 }}</span>
+      </div>
+    </div>
+  </div>
+
+  {% set summary_items = [
+    ('Mode', event.mode or '—'),
+    ('Status', event.status|capitalize if event.status else '—'),
+    ('Schedule', event.scheduled_for or '—'),
+    ('Prize Pool', event.prize_pool or '—'),
+    ('Entry Fee', event.entry_fee or '—'),
+    ('Region', event.region or '—'),
+    ('Platform', event.platform or '—'),
+    ('Slots Left', event.slots_left if event.slots_left is not none else '—'),
+    ('Max Slots', event.max_slots if event.max_slots is not none else '—'),
+    ('Total Payments', total_amount or '—')
+  ] %}
+    <section class="grid gap-4 md:grid-cols-2 lg:grid-cols-3 mb-10">
+    {% for label, value in summary_items %}
+        <div class="p-4 bg-white border border-slate-200 rounded-2xl shadow-lg">
+          <p class="text-[11px] uppercase tracking-[0.15em] text-slate-500">{{ label }}</p>
+          <p class="text-lg font-semibold text-slate-900 mt-1">{{ value }}</p>
+      </div>
+    {% endfor %}
+      <div class="p-4 bg-white border border-slate-200 rounded-2xl shadow-lg">
+        <p class="text-[11px] uppercase tracking-[0.15em] text-slate-500">Gmail CSV</p>
+        <div class="flex items-center justify-between mt-1">
+          <p class="text-sm text-slate-600">Download unique Gmail addresses</p>
+          <a href="{{ url_for('admin_event_players_csv', event_id=event.id) }}"
+             class="inline-flex items-center gap-2 px-3 py-2 text-sm font-semibold text-white bg-orange-500 rounded-lg shadow hover:bg-orange-400 transition">
+            Download
+          </a>
+        </div>
+        <p class="text-[11px] text-slate-500 mt-2">Only Gmail contacts for this event; one email per row.</p>
+      </div>
+  </section>
+
+  {% if status_counts %}
+    <section class="mb-10">
+        <h2 class="text-xl font-semibold text-slate-900 mb-3">Payment status overview</h2>
+      <div class="grid gap-3 md:grid-cols-3">
+        {% set palette = {
+            'paid': 'bg-green-50 text-green-700 border border-green-200',
+            'pending': 'bg-amber-50 text-amber-700 border border-amber-200',
+            'failed': 'bg-red-50 text-red-700 border border-red-200'
+        } %}
+        {% for status, count in status_counts %}
+          {% set classes = palette.get(status, 'bg-slate-50 text-slate-700 border border-slate-200') %}
+          <div class="p-4 rounded-2xl {{ classes }} flex items-center justify-between">
+            <div>
+              <p class="text-[11px] uppercase tracking-wide">{{ status.replace('_', ' ')|title }}</p>
+              <p class="text-sm text-slate-600">Teams</p>
+            </div>
+            <p class="text-3xl font-bold">{{ count }}</p>
+          </div>
+        {% endfor %}
+      </div>
+    </section>
+  {% endif %}
+
+  <section>
+    <div class="flex items-center justify-between mb-4">
+      <div>
+        <p class="text-sm text-slate-500">Roster intelligence</p>
+        <h2 class="text-2xl font-semibold text-slate-900">Registered teams ({{ registrations|length }})</h2>
+      </div>
+      <span class="text-xs text-slate-500">Data refreshes when players register or admins update payments.</span>
+    </div>
+    {% if registrations %}
+      <div class="space-y-6">
+        {% for reg in registrations %}
+          <article class="p-5 bg-white border border-slate-200 rounded-2xl shadow-lg">
+            <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+              <div>
+                <p class="text-[11px] uppercase tracking-[0.2em] text-slate-500">{{ reg.mode or 'Mode' }} • {{ reg.team_size }} player{{ 's' if reg.team_size != 1 else '' }}</p>
+                <h3 class="text-xl font-semibold text-slate-900 mt-1">{{ reg.team_name or reg.username }}</h3>
+                <p class="text-sm text-slate-600">Contact: {{ reg.username }} • {{ reg.email or '—' }} • {{ reg.phone or '—' }} • UPI: {{ reg.payout_upi or '—' }}</p>
+                <p class="text-xs text-slate-500 mt-1">Registered {{ reg.created_display or reg.created_at or '—' }}</p>
+              </div>
+              <div class="text-right text-sm text-slate-600">
+                <span class="inline-block px-3 py-1 rounded-full bg-slate-100 text-slate-700 text-xs mb-2">{{ reg.status|capitalize }}</span>
+                <p class="text-2xl font-bold text-orange-500">{{ reg.amount or '—' }}</p>
+                <p>Payment ID: <span class="text-slate-800">{{ reg.payment_id or '—' }}</span></p>
+                <p>Order ID: <span class="text-slate-800">{{ reg.order_id or '—' }}</span></p>
+              </div>
+            </div>
+            <div class="mt-4 grid gap-3 md:grid-cols-4 lg:grid-cols-5 text-sm text-slate-700">
+              <div class="p-3 bg-slate-50 rounded-xl border border-slate-200">
+                <p class="text-[11px] uppercase tracking-wide text-slate-500">Team size</p>
+                <p class="text-lg font-semibold">{{ reg.team_size }}</p>
+              </div>
+              <div class="p-3 bg-slate-50 rounded-xl border border-slate-200">
+                <p class="text-[11px] uppercase tracking-wide text-slate-500">Primary Game ID</p>
+                <p class="font-semibold text-slate-900 break-all">{{ reg.game_id or '—' }}</p>
+              </div>
+              <div class="p-3 bg-slate-50 rounded-xl border border-slate-200">
+                <p class="text-[11px] uppercase tracking-wide text-slate-500">Phone</p>
+                <p class="font-semibold text-slate-900">{{ reg.phone or '—' }}</p>
+              </div>
+              <div class="p-3 bg-slate-50 rounded-xl border border-slate-200">
+                <p class="text-[11px] uppercase tracking-wide text-slate-500">Email</p>
+                <p class="font-semibold text-slate-900 break-words">{{ reg.email or '—' }}</p>
+              </div>
+              <div class="p-3 bg-slate-50 rounded-xl border border-slate-200">
+                <p class="text-[11px] uppercase tracking-wide text-slate-500">Payout UPI</p>
+                <p class="font-semibold text-slate-900 break-all">{{ reg.payout_upi or '—' }}</p>
+              </div>
+            </div>
+            <div class="mt-5 overflow-x-auto">
+              <table class="w-full text-sm text-left text-slate-800 border border-slate-200 rounded-xl overflow-hidden">
+                <thead class="bg-slate-100 text-slate-700 text-xs uppercase tracking-wide">
+                  <tr>
+                    <th class="px-4 py-2">Slot</th>
+                    <th class="px-4 py-2">Player Name</th>
+                    <th class="px-4 py-2">Game ID</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for player in reg.players %}
+                    <tr class="border-t border-slate-200">
+                      <td class="px-4 py-2 text-slate-600">{{ player.slot or loop.index }}</td>
+                      <td class="px-4 py-2 font-semibold">{{ player.name or '—' }}</td>
+                      <td class="px-4 py-2 text-slate-700 break-all">{{ player.game_id or '—' }}</td>
+                    </tr>
+                  {% else %}
+                    <tr>
+                      <td colspan="3" class="px-4 py-3 text-center text-slate-500">No player IDs captured for this team.</td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </article>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="p-6 bg-white border border-slate-200 rounded-2xl text-sm text-slate-600 shadow-md">
+        No registrations recorded for this event.
+      </div>
+    {% endif %}
+  </section>
+{% endblock %}

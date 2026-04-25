@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Free Fire • BATTLE-X</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+  <style>
+    body {
+      background: linear-gradient(180deg, #f8fafc 0%, #e2e8f0 100%);
+      color: #0f172a;
+      font-family: 'Poppins', sans-serif;
+      overflow-x: hidden;
+    }
+
+    /* === Tournament Cards === */
+    .tournament-card {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 14px;
+      overflow: hidden;
+      transition: transform .3s ease, box-shadow .3s ease, border-color .3s ease;
+      box-shadow: 0 14px 32px rgba(148,163,184,0.22);
+    }
+    .tournament-card:hover {
+      transform: translateY(-6px);
+      box-shadow: 0 16px 40px rgba(249,115,22,0.18);
+      border-color: #f59e0b;
+    }
+    .card-banner {
+      position: relative;
+      height: 170px;
+      background-size: cover;
+      background-position: center;
+    }
+    .mode-label {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: linear-gradient(90deg, #f8ede565, #f7b16288);
+      color: #111827;
+      padding: 6px 12px;
+      font-size: 10px;
+      border-radius: 6px;
+      font-weight: 700;
+      text-transform: uppercase;
+      box-shadow: 0 10px 24px rgba(249,115,22,0.28);
+      border: 1px solid #f59e0b;
+    }
+
+    .progress-bar { height: 8px; background: #e2e8f0; border-radius: 9999px; overflow: hidden; }
+    .progress-fill { height: 100%; background: #22c55e; width: 0%; transition: width .3s; }
+
+    .join-btn {
+      background: linear-gradient(135deg, #fb944a, #fbbf24);
+      color: #111827;
+      display: inline-block;
+      padding: 10px 12px;
+      font-weight: 700;
+      border-radius: 10px;
+      text-decoration: none;
+      transition: transform .18s ease, box-shadow .18s ease;
+      box-shadow: 0 8px 18px rgba(249,115,22,0.2);
+      border: 1px solid #f59e0b;
+      width: 100%;
+      text-align: center;
+    }
+    .join-btn:hover { transform: translateY(-1px); box-shadow: 0 10px 22px rgba(249, 115, 22, 0.26); }
+
+    /* Actions row to keep Join + Rules side-by-side without overflow */
+    .action-row { display: flex; gap: 10px; align-items: stretch; flex-wrap: wrap; }
+    .action-row .join-btn { flex: 1 1 48%; min-width: 140px; }
+    .action-row .rules-pill { flex: 1 1 48%; min-width: 140px; white-space: nowrap; }
+
+    /* === Floating Filters === */
+    .filters-bar {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 12px;
+      box-shadow: 0 10px 24px rgba(148,163,184,0.16);
+    }
+
+    /* === Rules Modal === */
+    .rules-modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(15,23,42,0.3);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 70;
+      animation: fadeIn .25s ease;
+    }
+    @keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
+
+    .rules-modal {
+      background: #ffffff;
+      color: #0f172a;
+      border-radius: 14px;
+      padding: 1.5rem;
+      max-width: 900px;
+      width: 100%;
+      max-height: 90vh;
+      display: flex;
+      flex-direction: column;
+      border: 1px solid #e2e8f0;
+      box-shadow: 0 14px 42px rgba(148,163,184,0.28);
+      animation: zoomIn .25s ease;
+      overflow: hidden;
+    }
+    .rules-scroll {
+      max-height: 70vh;
+      overflow-y: auto;
+      padding-right: 8px;
+      margin-top: 8px;
+    }
+    @keyframes zoomIn { from { transform: scale(.9); opacity: 0 } to { transform: scale(1); opacity: 1 } }
+    .rules-pill {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      background: #ffffff;
+      color: #0f172a;
+      padding: 10px 12px;
+      border-radius: 10px;
+      font-weight: 700;
+      box-shadow: none;
+      border: 1px solid #e2e8f0;
+      cursor: pointer;
+      transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease;
+    }
+    .rules-pill:hover { transform: translateY(-1px); box-shadow: 0 8px 20px rgba(0,0,0,0.06); border-color: #cbd5e1; }
+  </style>
+</head>
+
+<body class="px-4">
+  {% include '_navbar.html' %}
+
+  <!-- Hero Section -->
+  <section class="text-center py-10">
+    <h1 class="text-3xl md:text-5xl font-bold bg-gradient-to-r from-orange-500 to-pink-500 bg-clip-text text-transparent">
+      Free Fire Tournaments
+    </h1>
+    <p class="text-slate-600 mt-2 text-sm md:text-base">Join competitive battles, win rewards, and rise on the leaderboard!</p>
+  </section>
+
+  <!-- Filters -->
+  <div class="filters-bar flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-3">
+    <div class="flex flex-wrap items-center gap-3">
+      <select id="filterMode" class="bg-white text-slate-800 p-2 rounded border border-slate-200 shadow-sm">
+        <option value="all">All modes</option>
+        <option value="BR">Battle Royale (BR)</option>
+        <option value="CS">Clash Squad (CS)</option>
+      </select>
+      <select id="filterRegion" class="bg-white text-slate-800 p-2 rounded border border-slate-200 shadow-sm">
+        <option value="all">All regions</option>
+        <option value="India">India</option>
+        <option value="Global">Global</option>
+      </select>
+      <div class="relative">
+        <input id="search" placeholder="Search tournaments..." class="bg-white p-2 pl-9 rounded text-slate-800 border border-slate-200 shadow-sm" />
+        <i class="fa fa-search absolute left-2 top-3 text-slate-400"></i>
+      </div>
+    </div>
+    <div class="text-sm text-slate-500 mt-2 sm:mt-0"> Tip: Join events with fewer slots left!</div>
+  </div>
+
+  <!-- Tournaments Grid -->
+  <div class="grid gap-5 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6" id="eventsGrid">
+        {% for e in events %}
+
+        {# Normalize numeric values so empty/None strings from admin edits don't break rendering #}
+        {% set _raw_max = e.max_slots if e.max_slots is not none else 0 %}
+        {% set max_slots = (_raw_max|int) if _raw_max else 0 %}
+        {% set _raw_left = e.slots_left if e.slots_left is not none else _raw_max %}
+        {% set slots_left = (_raw_left|int) if _raw_left is not none else 0 %}
+        {% set slots_left = 0 if slots_left < 0 else slots_left %}
+        {% set bookings = (max_slots - slots_left) if max_slots else 0 %}
+        {% set progress_pct = (bookings / max_slots * 100) if max_slots else 0 %}
+
+        <div class="tournament-card p-3"
+          data-mode="{{ e.mode }}"
+          data-region="{{ e.region }}"
+          data-title="{{ e.title|lower }}">
+
+        <!-- Banner -->
+        <div class="card-banner" style="background-image:url('{{ e.image }}');">
+          {# Decide the badge label with broader Solo/Duo/BR detection #}
+          {% set _mode_raw = e.mode or '' %}
+          {% set _mode = _mode_raw|lower %}
+          {% set _title = (e.title or '')|lower %}
+          {% set _is_br = ('solo' in _mode) or ('duo' in _mode) or ('br' == _mode) or ('battle royale' in _mode) or ('custom' in _mode) or ('solo' in _title) or ('duo' in _title) %}
+          {% set mode_label = 'BR Mode' if _is_br else (_mode_raw ~ ' Mode' if _mode_raw else 'Mode') %}
+          <span class="mode-label">{{ mode_label }}</span>
+        </div>
+
+        <div class="p-3">
+
+            <!-- Title -->
+            <h3 class="text-lg font-semibold truncate">{{ e.title }}</h3>
+
+            <!-- RAW time values (from DB/API) -->
+            {% set raw_start = e.start_time or '' %}
+            {% set raw_end   = e.end_time or '' %}
+
+            <!-- Friendly date label -->
+            {% set date_label =
+                (raw_start|friendly_date)
+                or (e.date|friendly_date)
+                or e.date
+                or 'Schedule TBA'
+            %}
+
+            <!-- Human-readable start/end (replace T with space if needed) -->
+            {% set start_label = raw_start|friendly_time %}
+            {% set end_label   = raw_end|friendly_time %}
+
+            <!-- Date + Region -->
+            <div class="text-sm text-slate-600 flex items-center justify-between gap-3">
+                <span>{{ date_label }}</span>
+              <span class="text-xs uppercase tracking-[0.2em] text-slate-500">{{ e.region }}</span>
+            </div>
+
+            <!-- Start / End Time -->
+            {% if start_label or end_label %}
+            <div class="text-sm text-slate-600">Time: {{ start_label or 'TBA' }}{% if end_label %} – {{ end_label }}{% endif %}</div>
+            {% endif %}
+
+            <!-- Slots Progress -->
+            <div class="mt-3 flex items-center gap-2">
+              <div class="progress-bar flex-1">
+                <div class="progress-fill"
+                   style="width: {{ progress_pct }}%;"></div>
+              </div>
+              <span class="text-xs text-slate-600">{{ slots_left }} left</span>
+            </div>
+
+            <!-- Entry Fee -->
+              <div class="text-orange-500 font-semibold mt-2">
+                  Entry Fee: ₹{{ e.entry_fee or 0 }}
+            </div>
+
+            <!-- Prize Pool -->
+            {% if e.prize_pool %}
+            <div class="text-emerald-600 text-sm font-medium">
+                  Prize Pool: ₹{{ e.prize_pool }}
+            </div>
+            {% endif %}
+
+            <!-- Actions -->
+            <div class="mt-3 action-row">
+              {% if slots_left <= 0 %}
+                <span class="join-btn inline-block opacity-60 cursor-not-allowed">Closed</span>
+              {% else %}
+                <a href="{{ url_for('register_freefire') }}?mode={{ e.mode }}&event_id={{ e.id }}"
+                   class="join-btn inline-block">
+                  Join Now
+                </a>
+              {% endif %}
+
+              <button type="button"
+                      class="rules-pill"
+                      data-event-id="{{ e.id }}"
+                      data-event-title="{{ e.title }}">
+                📜 Rules
+              </button>
+            </div>
+
+            <textarea class="event-rules" data-event-id="{{ e.id }}" style="display:none;">{{ (e.rules or '')|trim|safe }}</textarea>
+
+        </div>
+    </div>
+
+    {% endfor %}
+</div>
+
+  <!-- Rules Modal -->
+  <div id="rulesBackdrop" class="rules-modal-backdrop">
+    <div class="rules-modal relative">
+      <button id="closeRulesBtn" class="absolute top-3 right-4 text-slate-400 hover:text-slate-600 text-2xl">✕</button>
+      <h2 id="rulesTitle" class="text-2xl font-bold text-orange-500 mb-3">Tournament Rules</h2>
+      <div id="rulesBody" class="text-slate-700 text-sm leading-relaxed space-y-2"></div>
+      <p id="rulesEmpty" class="text-slate-500 text-sm" style="display:none;">Rules for this tournament will appear here once the admin adds them.</p>
+    </div>
+  </div>
+
+  <script>
+    const events = Array.from(document.querySelectorAll('.tournament-card'));
+    const filterMode = document.getElementById('filterMode');
+    const filterRegion = document.getElementById('filterRegion');
+    const search = document.getElementById('search');
+
+    function applyFilters() {
+      const mode = filterMode.value;
+      const region = filterRegion.value;
+      const q = search.value.trim().toLowerCase();
+      events.forEach(el => {
+        const emode = el.dataset.mode;
+        const eregion = el.dataset.region;
+        const title = el.dataset.title;
+        const show = (mode === 'all' || emode === mode)
+          && (region === 'all' || eregion === region)
+          && (!q || title.includes(q));
+        el.style.display = show ? 'block' : 'none';
+      });
+    }
+    [filterMode, filterRegion, search].forEach(el => el.addEventListener('input', applyFilters));
+
+    const defaultRulesText = [
+      'Players must register with valid Game ID and details.',
+      'No cheating, bug abuse, or use of hacks allowed.',
+      'Team composition can be changed after registration.',
+      'Team leader can bring another player if the current teammate is unavailable.',
+      'Report match issues within 15 minutes via dashboard.',
+      'Admin decisions are final.'
+    ].join('\n');
+
+    const backdrop = document.getElementById('rulesBackdrop');
+    const closeBtn = document.getElementById('closeRulesBtn');
+    const rulesBody = document.getElementById('rulesBody');
+    const rulesEmpty = document.getElementById('rulesEmpty');
+    const rulesTitle = document.getElementById('rulesTitle');
+    rulesBody.classList.add('rules-scroll');
+
+    const rulesMap = {};
+    document.querySelectorAll('.event-rules').forEach(el => {
+      const id = el.dataset.eventId;
+      const raw = (el.value || '').trim();
+      rulesMap[id] = raw || null;
+    });
+
+    // Render rules HTML (admin-authored); decode entities if they exist, otherwise use raw text
+    const decodeHtml = (str) => {
+      const t = document.createElement('textarea');
+      t.innerHTML = str;
+      return t.value;
+    };
+
+    function normalizeRules(text) {
+      const decoded = decodeHtml(text);
+      const hasTags = /<\w+/i.test(decoded);
+      return hasTags ? decoded : decoded.replace(/\n/g, '<br>');
+    }
+
+    function openRules(eventId, title) {
+      const text = rulesMap[eventId] || defaultRulesText;
+      rulesTitle.textContent = `${title || 'Tournament'} Rules`;
+      const cleaned = text.trim();
+      if (cleaned) {
+        rulesBody.innerHTML = normalizeRules(cleaned);
+        rulesBody.style.display = 'block';
+        rulesEmpty.style.display = 'none';
+      } else {
+        rulesBody.innerHTML = '';
+        rulesBody.style.display = 'none';
+        rulesEmpty.style.display = 'block';
+      }
+      backdrop.style.display = 'flex';
+    }
+
+    document.querySelectorAll('.rules-pill').forEach(btn => {
+      btn.addEventListener('click', () => openRules(btn.dataset.eventId, btn.dataset.eventTitle));
+    });
+
+    closeBtn.onclick = () => backdrop.style.display = 'none';
+    backdrop.onclick = (e) => { if (e.target === backdrop) backdrop.style.display = 'none'; };
+  </script>
+</body>
+</html>

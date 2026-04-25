@@ -323,7 +323,7 @@ input[readonly]{
           <li>No hacks, macros, emulators, or third-party tools; violations lead to disqualification.</li>
           <li>Join the provided lobby/room within the given time; late joins are marked absent.</li>
           <li>Follow admin instructions for screenshots/proof; disputes must be raised within 15 minutes.</li>
-          <li>Prize payouts use the submitted UPI; mismatched details can delay or void payouts.</li>
+          <li>Prize payouts are credited directly to your in-app wallet after result verification.</li>
         </ol>
       {% endset %}
       <div class="rules-scroll" id="rulesHtmlBlock">
@@ -432,8 +432,8 @@ input[readonly]{
             <input type="hidden" name="team_size" id="teamSizeInput" value="1">
 
             <div class="section-block">
-              <p class="section-title">Contact & Prize Payout Details</p>
-              <p class="section-sub">We use these to send confirmations and prize payouts.</p>
+              <p class="section-title">Contact Details</p>
+              <p class="section-sub">Prize winnings are credited directly to your wallet balance.</p>
               <div class="two-col">
                 <div>
                   <label>Your Email</label>
@@ -443,10 +443,6 @@ input[readonly]{
                   <label>Captain Game UID (Player 1)</label>
                   <input type="text" id="player_1_id" placeholder="Game ID of Player 1" required />
                 </div>
-              </div>
-              <div style="margin-top:12px">
-                <label>UPI ID for prize payouts</label>
-                <input type="text" id="payout_upi" placeholder="yourname@bank" inputmode="text" autocomplete="off" required />
               </div>
             </div>
 
@@ -458,9 +454,20 @@ input[readonly]{
 
             <div class="section-block" style="margin-bottom:8px">
               <p class="section-title" style="margin-bottom:4px">Payment Confirmation</p>
-              <p class="section-sub" style="margin-bottom:10px">Review your team, then continue to payment.</p>
+              <p class="section-sub" style="margin-bottom:10px">Review your team, choose payment method, then complete registration.</p>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+                <label style="display:flex;align-items:center;gap:8px;padding:10px;border:1px solid var(--border);border-radius:10px;background:#fffdf7;cursor:pointer">
+                  <input type="radio" name="payment_method" value="wallet" id="payMethodWallet" checked />
+                  <span style="font-weight:600">Pay from Wallet</span>
+                </label>
+                <label style="display:flex;align-items:center;gap:8px;padding:10px;border:1px solid var(--border);border-radius:10px;background:#ffffff;cursor:pointer">
+                  <input type="radio" name="payment_method" value="cashfree" id="payMethodCashfree" />
+                  <span style="font-weight:600">Pay via Cashfree</span>
+                </label>
+              </div>
+              <p class="section-sub" id="walletBalanceHint" style="margin-bottom:6px">Wallet Balance: {{ wallet_balance_label or '₹0' }}</p>
               <div class="actions" style="margin-top:8px">
-                <button id="btnPay" class="btn btn-primary" type="button">Proceed to Pay</button>
+                <button id="btnPay" class="btn btn-primary" type="button">Complete Registration</button>
               </div>
             </div>
           </form>
@@ -485,7 +492,8 @@ const playersContainer = document.getElementById('playersContainer');
 const formError = document.getElementById('formError');
 const btnPay = document.getElementById('btnPay');
 const player1Top = document.getElementById('player_1_id');
-const payoutUpiInput = document.getElementById('payout_upi');
+const payMethodWallet = document.getElementById('payMethodWallet');
+const payMethodCashfree = document.getElementById('payMethodCashfree');
 const lockedModeBanner = document.getElementById('lockedModeBanner');
 const lockedModeHelper = document.getElementById('lockedModeHelper');
 const modeTip = document.getElementById('modeTip');
@@ -1020,7 +1028,7 @@ btnPay.addEventListener('click', async ()=>{
   // basic validation common fields
   const regEmail = document.getElementById('reg_email').value.trim();
   const p1id = player1Top.value.trim();
-  const payoutUpi = (payoutUpiInput && payoutUpiInput.value ? payoutUpiInput.value : '').trim().toLowerCase();
+  const paymentMethod = payMethodCashfree && payMethodCashfree.checked ? 'cashfree' : 'wallet';
 
   if(!regEmail || !p1id){
     if(!regEmail) document.getElementById('reg_email').classList.add('input-error');
@@ -1028,19 +1036,8 @@ btnPay.addEventListener('click', async ()=>{
     return;
   }
 
-  if(!payoutUpi){
-    payoutUpiInput.classList.add('input-error');
-    return;
-  }
-
-  const upiPattern = /^[A-Za-z0-9._-]{2,}@[A-Za-z0-9]{2,}$/;
-  if(!upiPattern.test(payoutUpi)){
-    payoutUpiInput.classList.add('input-error');
-    return;
-  }
-
   // assemble payload
-  const payload = { email: regEmail, game_id: p1id, mode: currentMode, amount: 100, payout_upi: payoutUpi };
+  const payload = { email: regEmail, game_id: p1id, mode: currentMode, amount: 100 };
   if (selectedEventId) {
     payload.event_id = selectedEventId;
   }
@@ -1111,7 +1108,7 @@ btnPay.addEventListener('click', async ()=>{
   }
 
   // disable while processing
-  btnPay.disabled = true; btnPay.innerText = 'Preparing payment page...';
+  btnPay.disabled = true; btnPay.innerText = paymentMethod === 'wallet' ? 'Processing wallet payment...' : 'Preparing payment page...';
 
   try {
     // Save pending registration first, then route the user to the dedicated payment page.
@@ -1124,11 +1121,24 @@ btnPay.addEventListener('click', async ()=>{
     if(!regJson.success) throw new Error(regJson.error || 'Failed to save registration');
 
     const regId = regJson.registration_id;
+
+    if(paymentMethod === 'wallet'){
+      const walletResp = await fetch('/wallet/pay_registration', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ registration_id: regId })
+      });
+      const walletJson = await walletResp.json();
+      if(!walletJson.success) throw new Error(walletJson.error || 'Wallet payment failed');
+      window.location.href = walletJson.redirect_url || `/payment_success?payment_id=${walletJson.payment_id || ''}`;
+      return;
+    }
+
     window.location.href = `/payment_page/${regId}`;
   } catch(err) {
     formError.innerText = 'Failed to continue to payment: ' + (err.message || err);
     formError.style.display = 'block';
-    btnPay.disabled = false; btnPay.innerText = 'Proceed to Pay';
+    btnPay.disabled = false; btnPay.innerText = 'Complete Registration';
   }
 });
 

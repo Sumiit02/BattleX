@@ -1,0 +1,93 @@
+{% extends 'admin_base.html' %}
+
+{% block title %}Wallet Withdrawals{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto space-y-5">
+  <div class="flex items-center justify-between">
+    <div>
+      <h1 class="text-2xl font-bold text-slate-900">Wallet Withdrawals</h1>
+      <p class="text-sm text-slate-500">Approve or reject player withdrawal requests. Rejection auto-refunds wallet balance.</p>
+    </div>
+  </div>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div class="space-y-2">
+        {% for category, message in messages %}
+          <div class="px-3 py-2 rounded-lg text-sm font-medium {% if category == 'error' %}bg-red-50 text-red-700 border border-red-200{% elif category == 'success' %}bg-emerald-50 text-emerald-700 border border-emerald-200{% else %}bg-amber-50 text-amber-700 border border-amber-200{% endif %}">
+            {{ message }}
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+
+  <div class="bg-white border border-slate-200 rounded-2xl shadow-lg overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead class="bg-slate-100 text-slate-600">
+          <tr>
+            <th class="text-left px-3 py-3">ID</th>
+            <th class="text-left px-3 py-3">Player</th>
+            <th class="text-left px-3 py-3">Amount</th>
+            <th class="text-left px-3 py-3">Method</th>
+            <th class="text-left px-3 py-3">Details</th>
+            <th class="text-left px-3 py-3">Status</th>
+            <th class="text-left px-3 py-3">Requested At</th>
+            <th class="text-left px-3 py-3">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% if requests_list %}
+            {% for req in requests_list %}
+              <tr class="border-t border-slate-100 align-top">
+                <td class="px-3 py-3 font-semibold">#{{ req.id }}</td>
+                <td class="px-3 py-3">{{ req.username }}</td>
+                <td class="px-3 py-3 font-semibold">{{ req.amount_label }}</td>
+                <td class="px-3 py-3 uppercase">{{ req.method }}</td>
+                <td class="px-3 py-3 text-xs text-slate-600 leading-relaxed">
+                  <div><span class="font-semibold">Holder:</span> {{ req.holder_name }}</div>
+                  {% if req.method == 'bank' %}
+                    <div><span class="font-semibold">A/C:</span> {{ req.bank_account_number }}</div>
+                    <div><span class="font-semibold">IFSC:</span> {{ req.ifsc_code }}</div>
+                  {% else %}
+                    <div><span class="font-semibold">UPI:</span> {{ req.upi_id }}</div>
+                    <div><span class="font-semibold">Mobile:</span> {{ req.mobile_number }}</div>
+                  {% endif %}
+                </td>
+                <td class="px-3 py-3">
+                  <span class="px-2 py-1 rounded-full text-xs font-semibold {% if req.status == 'pending' %}bg-amber-100 text-amber-700{% elif req.status == 'approved' %}bg-emerald-100 text-emerald-700{% elif req.status == 'rejected' %}bg-red-100 text-red-700{% else %}bg-slate-100 text-slate-700{% endif %}">
+                    {{ req.status }}
+                  </span>
+                </td>
+                <td class="px-3 py-3 text-slate-600">{{ req.created_at }}</td>
+                <td class="px-3 py-3">
+                  {% if req.status == 'pending' %}
+                    <div class="flex gap-2">
+                      <form method="post" action="{{ url_for('admin_wallet_withdrawal_decision', request_id=req.id) }}">
+                        <input type="hidden" name="action" value="approve">
+                        <button type="submit" class="px-3 py-1.5 text-xs rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold">Approve</button>
+                      </form>
+                      <form method="post" action="{{ url_for('admin_wallet_withdrawal_decision', request_id=req.id) }}">
+                        <input type="hidden" name="action" value="reject">
+                        <button type="submit" class="px-3 py-1.5 text-xs rounded-lg bg-red-600 hover:bg-red-700 text-white font-semibold">Reject + Refund</button>
+                      </form>
+                    </div>
+                  {% else %}
+                    <span class="text-xs text-slate-500">Processed</span>
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          {% else %}
+            <tr>
+              <td colspan="8" class="px-3 py-8 text-center text-slate-500">No withdrawal requests found.</td>
+            </tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

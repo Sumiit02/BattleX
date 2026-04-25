@@ -44,20 +44,7 @@
         <p class="mt-2 text-sm text-slate-600">
           Deposit: ₹{{ wallet_min_deposit }} to ₹{{ wallet_max_deposit }} | Withdraw: ₹{{ wallet_min_withdraw }} to ₹{{ wallet_max_withdraw }}
         </p>
-
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-5">
-          <form method="post" action="{{ url_for('wallet_deposit') }}" class="bg-white border border-slate-200 rounded-xl p-4 space-y-3">
-            <label class="font-semibold text-slate-600">Add Money</label>
-            <input type="number" name="amount" min="{{ wallet_min_deposit }}" max="{{ wallet_max_deposit }}" required placeholder="Enter amount in ₹">
-            <button type="submit" class="w-full py-2 rounded-lg bg-orange-500 hover:bg-orange-600 text-white font-semibold">Deposit</button>
-          </form>
-
-          <form method="post" action="{{ url_for('wallet_withdraw') }}" class="bg-white border border-slate-200 rounded-xl p-4 space-y-3">
-            <label class="font-semibold text-slate-600">Withdraw Money</label>
-            <input type="number" name="amount" min="{{ wallet_min_withdraw }}" max="{{ wallet_max_withdraw }}" required placeholder="Enter amount in ₹">
-            <button type="submit" class="w-full py-2 rounded-lg bg-slate-700 hover:bg-slate-800 text-white font-semibold">Withdraw</button>
-          </form>
-        </div>
+        <a href="{{ url_for('wallet_page') }}" class="inline-flex mt-4 px-4 py-2 rounded-lg bg-orange-500 hover:bg-orange-600 text-white font-semibold">Open Wallet</a>
       </div>
 
       <div class="mt-8">

@@ -132,6 +132,8 @@
         <a href="{{ url_for('admin_matches') }}" class="admin-nav-link {{ 'is-active' if active else '' }}">🎮 Matches</a>
         {% set active = p == url_for('admin_payments') %}
         <a href="{{ url_for('admin_payments') }}" class="admin-nav-link {{ 'is-active' if active else '' }}">💳 Payments</a>
+        {% set active = p == url_for('admin_wallet') %}
+        <a href="{{ url_for('admin_wallet') }}" class="admin-nav-link {{ 'is-active' if active else '' }}">💼 Wallet Withdrawals</a>
         {% set active = p == url_for('admin_players') %}
         <a href="{{ url_for('admin_players') }}" class="admin-nav-link {{ 'is-active' if active else '' }}">👥 Players</a>
         {% set active = p == url_for('admin_settings') %}

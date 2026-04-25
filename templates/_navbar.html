@@ -225,7 +225,13 @@
         <!-- Right side -->
         <div style="display:flex;align-items:center;gap:.6rem">
     {% if acct %}
-    <a href="/account" title="Account" style="display:flex;align-items:center;gap:.5rem;text-decoration:none; pointer-events: none;">
+    <a href="{{ url_for('wallet_page') }}" title="Wallet" class="nav-cta" style="padding:.45rem .85rem; font-size:.8rem;">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 7.5A2.5 2.5 0 0 1 5.5 5h12A2.5 2.5 0 0 1 20 7.5v9A2.5 2.5 0 0 1 17.5 19h-12A2.5 2.5 0 0 1 3 16.5v-9z" stroke="#0f172a" stroke-width="1.5"/><path d="M20 10h-4a2 2 0 1 0 0 4h4" stroke="#0f172a" stroke-width="1.5"/></svg>
+        Wallet
+    </a>
+    {% endif %}
+    {% if acct %}
+    <a href="{{ url_for('player_account') }}" title="Account" style="display:flex;align-items:center;gap:.5rem;text-decoration:none;">
         <div class="avatar">{{ acct[0]|upper }}</div>
     </a>
     {% endif %}
@@ -262,6 +268,7 @@
 
             {% if acct %}
                 <a class="menu-item" href="/account"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM3 21a9 9 0 0 1 18 0" stroke="#0f172a" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Account</span></a>
+                <a class="menu-item" href="{{ url_for('wallet_page') }}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M3 7.5A2.5 2.5 0 0 1 5.5 5h12A2.5 2.5 0 0 1 20 7.5v9A2.5 2.5 0 0 1 17.5 19h-12A2.5 2.5 0 0 1 3 16.5v-9z" stroke="#0f172a" stroke-width="1.2"/><path d="M20 10h-4a2 2 0 1 0 0 4h4" stroke="#0f172a" stroke-width="1.2"/></svg><span>Wallet</span></a>
                 <a class="menu-item" href="/settings"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z" stroke="#0f172a" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Settings</span></a>
                 <a class="menu-item" href="/history"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M3 6v6h6" stroke="#0f172a" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>History</span></a>
                 <div class="menu-divider"></div>

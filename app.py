@@ -2894,22 +2894,47 @@ def proceed_registration():
         conn = sqlite3.connect(DB_NAME)
         cur = conn.cursor()
         # save a pending registration (status pending). amount stored in paise based on event entry fee
-        cur.execute("""
-            INSERT INTO registrations (username, email, game_id, phone, payout_upi, mode, team_size, team_name, amount, status, event_id)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)
-        """, (
-            session.get('user'),
-            data.get('email'),
-            data.get('game_id') or '',
-            primary_phone,
-            data.get('payout_upi') or '',
-            data.get('mode'),
-            int(data.get('team_size') or 1),
-            data.get('team_name') or '',
-            amount_paise,
-            int(data.get('event_id')) if data.get('event_id') else None
-        ))
-        reg_id = cur.lastrowid
+        if USE_POSTGRES:
+            cur.execute("""
+                INSERT INTO registrations (username, email, game_id, phone, payout_upi, mode, team_size, team_name, amount, status, event_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)
+                RETURNING id
+            """, (
+                session.get('user'),
+                data.get('email'),
+                data.get('game_id') or '',
+                primary_phone,
+                data.get('payout_upi') or '',
+                data.get('mode'),
+                int(data.get('team_size') or 1),
+                data.get('team_name') or '',
+                amount_paise,
+                int(data.get('event_id')) if data.get('event_id') else None
+            ))
+            inserted = cur.fetchone()
+            reg_id = inserted[0] if inserted else None
+        else:
+            cur.execute("""
+                INSERT INTO registrations (username, email, game_id, phone, payout_upi, mode, team_size, team_name, amount, status, event_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)
+            """, (
+                session.get('user'),
+                data.get('email'),
+                data.get('game_id') or '',
+                primary_phone,
+                data.get('payout_upi') or '',
+                data.get('mode'),
+                int(data.get('team_size') or 1),
+                data.get('team_name') or '',
+                amount_paise,
+                int(data.get('event_id')) if data.get('event_id') else None
+            ))
+            reg_id = cur.lastrowid
+
+        if not reg_id or int(reg_id) <= 0:
+            conn.rollback()
+            conn.close()
+            return jsonify({'success': False, 'error': 'Failed to create registration id'}), 500
         conn.commit()
         conn.close()
 
@@ -2942,6 +2967,8 @@ def wallet_pay_registration():
     try:
         reg_id = int(reg_id)
     except Exception:
+        return jsonify({'success': False, 'error': 'Invalid registration id'}), 400
+    if reg_id <= 0:
         return jsonify({'success': False, 'error': 'Invalid registration id'}), 400
 
     username = session.get('user')

@@ -48,6 +48,11 @@
     .spacer { height: 12px; }
     .form-panel { display: grid; gap: 14px; background: transparent; padding: 0; }
     .stacked-actions { display: grid; gap: 10px; margin-top: 0; }
+    .flash-stack { display: grid; gap: 8px; margin: 2px 0 2px; }
+    .flash { border-radius: 10px; padding: 10px 12px; font-size: 13px; border: 1px solid transparent; }
+    .flash-error { background: #fee2e2; border-color: #fca5a5; color: #991b1b; }
+    .flash-success { background: #dcfce7; border-color: #86efac; color: #166534; }
+    .flash-info { background: #e0f2fe; border-color: #93c5fd; color: #1d4ed8; }
     /* Modal */
     .modal-overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.35); display: grid; place-items: center; z-index: 50; padding: 16px; }
     .modal-card { position: relative; max-width: 420px; width: 100%; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 18px; padding: 22px 18px; box-shadow: 0 16px 46px rgba(148,163,184,0.3); }
@@ -94,6 +99,16 @@
       </section>
 
       <section class="form-panel">
+        {%- with messages = get_flashed_messages(with_categories=true) %}
+          {%- if messages %}
+            <div class="flash-stack">
+              {% for category, message in messages %}
+                <div class="flash {{ 'flash-success' if category=='success' else 'flash-error' if category=='error' else 'flash-info' }}">{{ message }}</div>
+              {% endfor %}
+            </div>
+          {%- endif %}
+        {%- endwith %}
+
         <form id="loginForm" action="{{ url_for('login') }}" method="post" class="form">
           <div class="field">
             <label for="username">Username or email</label>

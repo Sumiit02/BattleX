@@ -17,8 +17,8 @@ if DATABASE_URL.startswith("postgres://"):
 def add_admin():
     username = os.getenv("ADMIN_USERNAME", "admin1")
     email = os.getenv("ADMIN_EMAIL", "admin1@example.com")
-    password = os.getenv("ADMIN_PASSWORD", "ADMINPASS123")
-    admin_code = os.getenv("ADMIN_CODE", "ADMIN2025")
+    password = os.getenv("ADMIN_PASSWORD", "V9!kQ2@xL7#pM4s")
+    admin_code = os.getenv("ADMIN_CODE", "74829")
     phone = os.getenv("ADMIN_PHONE", "9876543210")
     password_hash = generate_password_hash(password)
 

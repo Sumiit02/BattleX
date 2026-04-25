@@ -60,6 +60,13 @@ except Exception:
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 ADMIN_SETTINGS_FILE = os.path.join(BASE_DIR, 'admin_settings.json')
 
+# Bootstrap admin (can be overridden by env vars on Render)
+BOOTSTRAP_ADMIN_USERNAME = (os.getenv('ADMIN_USERNAME') or 'admin1').strip()
+BOOTSTRAP_ADMIN_PASSWORD = os.getenv('ADMIN_PASSWORD') or 'V9!kQ2@xL7#pM4s'
+BOOTSTRAP_ADMIN_CODE = os.getenv('ADMIN_CODE') or '74829'
+BOOTSTRAP_ADMIN_EMAIL = (os.getenv('ADMIN_EMAIL') or 'admin1@example.com').strip()
+BOOTSTRAP_ADMIN_PHONE = (os.getenv('ADMIN_PHONE') or '').strip()
+
 _ORIGINAL_SQLITE_CONNECT = sqlite3.connect
 
 
@@ -1142,6 +1149,63 @@ def init_db():
 
     conn.commit()
     conn.close()
+
+
+def ensure_bootstrap_admin():
+    """Ensure one bootstrap admin exists for first login in fresh deployments."""
+    if not BOOTSTRAP_ADMIN_USERNAME or not BOOTSTRAP_ADMIN_PASSWORD or not BOOTSTRAP_ADMIN_CODE:
+        return
+    conn = None
+    try:
+        conn = sqlite3.connect(DB_NAME)
+        cur = conn.cursor()
+        cur.execute('SELECT id, role FROM users WHERE username = ?', (BOOTSTRAP_ADMIN_USERNAME,))
+        row = cur.fetchone()
+        password_hash = generate_password_hash(BOOTSTRAP_ADMIN_PASSWORD)
+
+        if not row:
+            cur.execute(
+                """
+                INSERT INTO users (username, email, password, role, game_id, phone, admin_code)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    BOOTSTRAP_ADMIN_USERNAME,
+                    BOOTSTRAP_ADMIN_EMAIL,
+                    password_hash,
+                    'admin',
+                    None,
+                    BOOTSTRAP_ADMIN_PHONE,
+                    BOOTSTRAP_ADMIN_CODE,
+                )
+            )
+        else:
+            user_id, role = row[0], (row[1] or '')
+            cur.execute(
+                """
+                UPDATE users
+                SET email = COALESCE(NULLIF(email, ''), ?),
+                    password = ?,
+                    role = 'admin',
+                    admin_code = ?,
+                    phone = COALESCE(NULLIF(phone, ''), ?)
+                WHERE id = ?
+                """,
+                (
+                    BOOTSTRAP_ADMIN_EMAIL,
+                    password_hash,
+                    BOOTSTRAP_ADMIN_CODE,
+                    BOOTSTRAP_ADMIN_PHONE,
+                    user_id,
+                )
+            )
+
+        conn.commit()
+    except Exception as ex:
+        print('Failed to ensure bootstrap admin:', ex)
+    finally:
+        if conn:
+            conn.close()
 
 # ---------- ROUTES ----------
 @app.route('/')
@@ -3437,6 +3501,7 @@ def google_callback_alias():
 # Initialize the database for both local runs and WSGI servers (e.g., gunicorn).
 try:
     init_db()
+    ensure_bootstrap_admin()
 except Exception as db_init_error:
     print('Database initialization failed:', db_init_error)
 

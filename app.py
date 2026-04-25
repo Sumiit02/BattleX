@@ -42,8 +42,15 @@ if DATABASE_URL.startswith('postgres://'):
 USE_POSTGRES = DATABASE_URL.startswith('postgresql://')
 DB_NAME = os.getenv('DB_NAME') or os.getenv('DATABASE_PATH') or 'gamezone.db'
 ALLOWED_IMAGE_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp', 'avif'}
-STATIC_UPLOAD_FOLDER = os.getenv('UPLOAD_DIR') or os.path.join(app.static_folder or 'static', 'uploads')
-os.makedirs(STATIC_UPLOAD_FOLDER, exist_ok=True)
+DEFAULT_UPLOAD_FOLDER = os.path.join(app.static_folder or 'static', 'uploads')
+STATIC_UPLOAD_FOLDER = os.getenv('UPLOAD_DIR') or DEFAULT_UPLOAD_FOLDER
+try:
+    os.makedirs(STATIC_UPLOAD_FOLDER, exist_ok=True)
+except PermissionError:
+    # On platforms without writable mounted disks, fall back to temp storage.
+    STATIC_UPLOAD_FOLDER = os.path.join('/tmp', 'battlex_uploads')
+    os.makedirs(STATIC_UPLOAD_FOLDER, exist_ok=True)
+    print(f"UPLOAD_DIR not writable, using fallback: {STATIC_UPLOAD_FOLDER}")
 APP_TIMEZONE = os.getenv('APP_TIMEZONE', 'Asia/Kolkata')
 try:
     LOCAL_TIMEZONE = ZoneInfo(APP_TIMEZONE)

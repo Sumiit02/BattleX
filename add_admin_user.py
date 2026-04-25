@@ -1,29 +1,60 @@
+import os
 import sqlite3
 
-DB_NAME = "gamezone.db"
+try:
+    import psycopg2
+except ImportError:
+    psycopg2 = None
+
+from werkzeug.security import generate_password_hash
+
+DB_NAME = os.getenv("DB_NAME", "gamezone.db")
+DATABASE_URL = (os.getenv("DATABASE_URL") or "").strip()
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
 
 def add_admin():
-    conn = sqlite3.connect(DB_NAME)
-    cur = conn.cursor()
-    # Remove any existing admin1 user
-    cur.execute("DELETE FROM users WHERE username = ? AND role = 'admin'", ('admin1',))
-    from werkzeug.security import generate_password_hash
-    password_hash = generate_password_hash('ADMINPASS123')
-    cur.execute("""
-        INSERT INTO users (username, email, password, role, game_id, phone, admin_code)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-    """, (
-        'admin1',
-        'admin1@example.com',
-        password_hash,
-        'admin',
-        None,
-        '9876543210',
-        'ADMIN2025'
-    ))
-    conn.commit()
-    conn.close()
+    username = os.getenv("ADMIN_USERNAME", "admin1")
+    email = os.getenv("ADMIN_EMAIL", "admin1@example.com")
+    password = os.getenv("ADMIN_PASSWORD", "ADMINPASS123")
+    admin_code = os.getenv("ADMIN_CODE", "ADMIN2025")
+    phone = os.getenv("ADMIN_PHONE", "9876543210")
+    password_hash = generate_password_hash(password)
+
+    if DATABASE_URL.startswith("postgresql://"):
+        if psycopg2 is None:
+            raise RuntimeError("psycopg2 is required for PostgreSQL. Install dependencies first.")
+        sslmode = os.getenv("PGSSLMODE", "require")
+        conn = psycopg2.connect(DATABASE_URL, sslmode=sslmode)
+        cur = conn.cursor()
+        cur.execute("DELETE FROM users WHERE username = %s AND role = 'admin'", (username,))
+        cur.execute(
+            """
+            INSERT INTO users (username, email, password, role, game_id, phone, admin_code)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            """,
+            (username, email, password_hash, 'admin', None, phone, admin_code)
+        )
+        conn.commit()
+        conn.close()
+    else:
+        conn = sqlite3.connect(DB_NAME)
+        cur = conn.cursor()
+        cur.execute("DELETE FROM users WHERE username = ? AND role = 'admin'", (username,))
+        cur.execute(
+            """
+            INSERT INTO users (username, email, password, role, game_id, phone, admin_code)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (username, email, password_hash, 'admin', None, phone, admin_code)
+        )
+        conn.commit()
+        conn.close()
+
     print("Admin user reset and added successfully.")
+    print(f"Username: {username}")
+    print(f"Admin Code: {admin_code}")
 
 if __name__ == "__main__":
     add_admin()

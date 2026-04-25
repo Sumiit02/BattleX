@@ -16,6 +16,32 @@
             .gradient-panel {
                 background: linear-gradient(135deg, #ffedd5, #e0f2fe);
             }
+            .flash-stack {
+                display: grid;
+                gap: 8px;
+                margin: 0 0 14px;
+            }
+            .flash {
+                border-radius: 10px;
+                padding: 10px 12px;
+                font-size: 13px;
+                border: 1px solid transparent;
+            }
+            .flash-error {
+                background: #fee2e2;
+                border-color: #fca5a5;
+                color: #991b1b;
+            }
+            .flash-success {
+                background: #dcfce7;
+                border-color: #86efac;
+                color: #166534;
+            }
+            .flash-info {
+                background: #e0f2fe;
+                border-color: #93c5fd;
+                color: #1d4ed8;
+            }
         </style>
 </head>
 <body>
@@ -41,6 +67,15 @@
                 <div class="mb-6 text-sm">
                     <span class="font-semibold text-orange-500">Admin Access Only</span>
                 </div>
+                                {%- with messages = get_flashed_messages(with_categories=true) %}
+                                    {%- if messages %}
+                                        <div class="flash-stack">
+                                            {% for category, message in messages %}
+                                                <div class="flash {{ 'flash-success' if category=='success' else 'flash-error' if category=='error' else 'flash-info' }}">{{ message }}</div>
+                                            {% endfor %}
+                                        </div>
+                                    {%- endif %}
+                                {%- endwith %}
                 <form method="POST" class="space-y-5">
                     <input name="username" placeholder="Admin Username"
                         class="w-full p-3 rounded-lg bg-white border border-slate-200 focus:outline-none focus:ring-2 focus:ring-orange-500"

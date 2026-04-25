@@ -70,6 +70,9 @@ body{
 .rules-backdrop.show{display:flex}
 .rules-modal{position:relative;width:min(900px,100%);max-height:90vh;overflow:hidden;background:#ffffff;border:1px solid var(--border);border-radius:18px;box-shadow:0 20px 52px rgba(0,0,0,0.22);padding:22px 22px 26px;animation:zoomIn .25s ease;display:flex;flex-direction:column}
 .rules-scroll{max-height:70vh;overflow-y:auto;padding-right:6px;margin-top:14px;}
+.rules-scroll h4{margin:10px 0 6px;font-weight:800;color:#0f172a}
+.rules-scroll ul{margin:0;padding-left:18px;display:grid;gap:6px;color:#334155}
+.rules-scroll li{line-height:1.5}
 .rules-close{position:absolute;top:10px;right:12px;border:none;background:transparent;font-size:22px;color:#94a3b8;cursor:pointer}
 .rules-close:hover{color:#0f172a}
 .rules-trigger{position:fixed;right:18px;bottom:18px;padding:12px 16px;border-radius:999px;border:1px solid #f59e0b;background:linear-gradient(120deg,#f97316,#fbbf24);color:#0b0b0b;font-weight:800;box-shadow:0 12px 30px rgba(249,115,22,0.26);cursor:pointer;z-index:1100}
@@ -1134,6 +1137,73 @@ btnPay.addEventListener('click', async ()=>{
   const openRulesBtn = document.getElementById('openRulesBtn');
   const closeRulesBtn = document.getElementById('closeRulesBtn');
   const acceptRulesBtn = document.getElementById('rulesAcceptBtn');
+  const rulesHtmlBlock = document.getElementById('rulesHtmlBlock');
+
+  function cleanRulesText(raw) {
+    if (!raw) return '';
+    let text = String(raw);
+    text = text.replace(/<[^>]*>/g, ' ');
+    text = text.replace(/\*\*|__|`/g, '');
+    text = text.replace(/\r/g, '\n');
+    text = text.replace(/\s{2,}/g, ' ');
+    text = text.replace(/\n{3,}/g, '\n\n');
+    return text.trim();
+  }
+
+  function splitRulesItems(text) {
+    if (!text) return [];
+    const normalized = text
+      .replace(/\s*[•●▪▫]\s*/g, '\n')
+      .replace(/\s*\*\s+/g, '\n')
+      .replace(/\s*\d+\.\s+/g, '\n')
+      .replace(/\s*[-–]\s+/g, '\n');
+    return normalized
+      .split(/\n+/)
+      .map(s => s.trim())
+      .filter(Boolean)
+      .filter(s => s.length > 2);
+  }
+
+  function formatRulesBlock() {
+    if (!rulesHtmlBlock) return;
+    const raw = rulesHtmlBlock.textContent || '';
+    const cleaned = cleanRulesText(raw);
+    if (!cleaned) return;
+
+    const items = splitRulesItems(cleaned);
+    if (!items.length) {
+      rulesHtmlBlock.innerHTML = `<p style="line-height:1.7;color:#334155;white-space:pre-line">${cleaned}</p>`;
+      return;
+    }
+
+    const groups = {
+      match: [],
+      payout: [],
+      notes: [],
+      other: []
+    };
+
+    items.forEach(item => {
+      const low = item.toLowerCase();
+      if (/(payment|upi|prize|rank|kill|earning|refund)/.test(low)) groups.payout.push(item);
+      else if (/(internet|lag|crash|important|note|responsibility)/.test(low)) groups.notes.push(item);
+      else if (/(join|room|map|player|mode|entry|teaming|hack|result|rule|guideline|disqual)/.test(low)) groups.match.push(item);
+      else groups.other.push(item);
+    });
+
+    function section(title, arr) {
+      if (!arr.length) return '';
+      return `<h4>${title}</h4><ul>${arr.map(v => `<li>${v}</li>`).join('')}</ul>`;
+    }
+
+    rulesHtmlBlock.innerHTML =
+      section('Match Rules', groups.match) +
+      section('Prize and Payment', groups.payout) +
+      section('Important Notes', groups.notes) +
+      section('Additional Info', groups.other);
+  }
+
+  formatRulesBlock();
 
   function openRules(){
     if(!rulesBackdrop) return;

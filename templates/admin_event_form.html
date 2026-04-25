@@ -89,6 +89,33 @@
       box-shadow: 0 10px 20px rgba(249,115,22,0.24);
       border:1px solid #f59e0b;
     }
+
+    .rules-preview {
+      background: #fffdf8;
+      border: 1px solid #fde68a;
+      border-radius: 12px;
+      padding: 14px;
+    }
+
+    .rules-preview h4 {
+      margin: 10px 0 6px;
+      font-weight: 800;
+      color: #0f172a;
+      font-size: 0.95rem;
+    }
+
+    .rules-preview ul {
+      margin: 0;
+      padding-left: 18px;
+      display: grid;
+      gap: 6px;
+      color: #334155;
+    }
+
+    .rules-preview li {
+      line-height: 1.5;
+      font-size: 0.9rem;
+    }
   </style>
 </head>
 <body class="min-h-screen">
@@ -251,6 +278,13 @@
         </div>
         {% endif %}
 
+        <div class="rules-preview">
+          <p class="text-[12px] uppercase tracking-wide text-orange-600 font-bold mb-2">Players Will See</p>
+          <div id="rulesPreviewContent" class="space-y-1 text-slate-700">
+            <p class="text-sm text-slate-500">Start typing rules to preview formatted output.</p>
+          </div>
+        </div>
+
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label>Card Image</label>
@@ -318,6 +352,86 @@
     const previewMode = document.querySelector('.preview-mode');
     const previewBanner = document.getElementById('previewBanner');
     const previewInfo = document.getElementById('previewInfo');
+    const rulesInput = document.querySelector('textarea[name="rules"]');
+    const rulesPreviewContent = document.getElementById('rulesPreviewContent');
+
+    function escapeHtml(value) {
+      return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function cleanRulesText(raw) {
+      if (!raw) return '';
+      let text = String(raw);
+      text = text.replace(/<[^>]*>/g, ' ');
+      text = text.replace(/\*\*|__|`/g, '');
+      text = text.replace(/\r/g, '\n');
+      text = text.replace(/\s{2,}/g, ' ');
+      text = text.replace(/\n{3,}/g, '\n\n');
+      return text.trim();
+    }
+
+    function splitRulesItems(text) {
+      if (!text) return [];
+      const normalized = text
+        .replace(/\s*[•●▪▫]\s*/g, '\n')
+        .replace(/\s*\*\s+/g, '\n')
+        .replace(/\s*\d+\.\s+/g, '\n')
+        .replace(/\s*[-–]\s+/g, '\n');
+      return normalized
+        .split(/\n+/)
+        .map(s => s.trim())
+        .filter(Boolean)
+        .filter(s => s.length > 2);
+    }
+
+    function renderRulesPreview() {
+      if (!rulesPreviewContent) return;
+
+      const raw = rulesInput ? rulesInput.value : '';
+      const cleaned = cleanRulesText(raw);
+
+      if (!cleaned) {
+        rulesPreviewContent.innerHTML = '<p class="text-sm text-slate-500">Start typing rules to preview formatted output.</p>';
+        return;
+      }
+
+      const items = splitRulesItems(cleaned);
+      if (!items.length) {
+        rulesPreviewContent.innerHTML = `<p class="text-sm text-slate-700" style="line-height:1.7;white-space:pre-line">${escapeHtml(cleaned)}</p>`;
+        return;
+      }
+
+      const groups = {
+        match: [],
+        payout: [],
+        notes: [],
+        other: []
+      };
+
+      items.forEach(item => {
+        const low = item.toLowerCase();
+        if (/(payment|upi|prize|rank|kill|earning|refund)/.test(low)) groups.payout.push(item);
+        else if (/(internet|lag|crash|important|note|responsibility)/.test(low)) groups.notes.push(item);
+        else if (/(join|room|map|player|mode|entry|teaming|hack|result|rule|guideline|disqual)/.test(low)) groups.match.push(item);
+        else groups.other.push(item);
+      });
+
+      function section(title, arr) {
+        if (!arr.length) return '';
+        return `<h4>${title}</h4><ul>${arr.map(v => `<li>${escapeHtml(v)}</li>`).join('')}</ul>`;
+      }
+
+      rulesPreviewContent.innerHTML =
+        section('Match Rules', groups.match) +
+        section('Prize and Payment', groups.payout) +
+        section('Important Notes', groups.notes) +
+        section('Additional Info', groups.other);
+    }
 
     function currentValue(primary, fallback, placeholder) {
       if (primary && primary.value !== undefined && primary.value !== '') return primary.value;
@@ -369,6 +483,10 @@
     }
     if (dateInput) dateInput.addEventListener('input', updatePreview);
     if (regionInput) regionInput.addEventListener('input', updatePreview);
+    if (rulesInput) {
+      rulesInput.addEventListener('input', renderRulesPreview);
+      rulesInput.addEventListener('change', renderRulesPreview);
+    }
 
     imageUpload.addEventListener('change', evt => {
       const file = evt.target.files && evt.target.files[0];
@@ -379,6 +497,7 @@
     });
 
     updatePreview();
+    renderRulesPreview();
   </script>
 </body>
 </html>

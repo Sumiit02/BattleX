@@ -1,3 +1,8 @@
+databases:
+  - name: battlex-db
+    databaseName: battlex
+    user: battlex
+
 services:
   - type: web
     name: battlex
@@ -11,10 +16,14 @@ services:
         value: 3.11.9
       - key: FLASK_ENV
         value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: battlex-db
+          property: connectionString
+      - key: PGSSLMODE
+        value: require
       - key: SESSION_COOKIE_SECURE
         value: "1"
-      - key: DB_NAME
-        value: /var/data/gamezone.db
       - key: UPLOAD_DIR
         value: /var/data/uploads
       - key: APP_TIMEZONE

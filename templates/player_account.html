@@ -18,11 +18,78 @@
   <div class="max-w-xl mx-auto pt-16 pb-12 px-4">
     <div class="account-card p-8">
       <h2 class="text-3xl font-bold mb-6 text-orange-500">My Account</h2>
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          <div class="mb-5 space-y-2">
+            {% for category, message in messages %}
+              <div class="px-3 py-2 rounded-lg text-sm font-medium {% if category == 'error' %}bg-red-50 text-red-700 border border-red-200{% elif category == 'success' %}bg-emerald-50 text-emerald-700 border border-emerald-200{% else %}bg-amber-50 text-amber-700 border border-amber-200{% endif %}">
+                {{ message }}
+              </div>
+            {% endfor %}
+          </div>
+        {% endif %}
+      {% endwith %}
       <div class="space-y-4 text-slate-700">
         <div><span class="font-semibold text-slate-500">Username:</span> {{ user[0] }}</div>
         <div><span class="font-semibold text-slate-500">Email:</span> {{ user[1] }}</div>
         <div><span class="font-semibold text-slate-500">Game ID:</span> {{ user[2] }}</div>
         <div><span class="font-semibold text-slate-500">Phone:</span> {{ user[3] }}</div>
+      </div>
+
+      <div class="mt-8 p-5 rounded-2xl border border-orange-200 bg-orange-50/80">
+        <div class="flex items-center justify-between gap-3">
+          <h3 class="text-xl font-bold text-orange-600">Wallet Balance</h3>
+          <p class="text-2xl font-extrabold text-slate-900">{{ wallet_balance_label }}</p>
+        </div>
+        <p class="mt-2 text-sm text-slate-600">
+          Deposit: ₹{{ wallet_min_deposit }} to ₹{{ wallet_max_deposit }} | Withdraw: ₹{{ wallet_min_withdraw }} to ₹{{ wallet_max_withdraw }}
+        </p>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-5">
+          <form method="post" action="{{ url_for('wallet_deposit') }}" class="bg-white border border-slate-200 rounded-xl p-4 space-y-3">
+            <label class="font-semibold text-slate-600">Add Money</label>
+            <input type="number" name="amount" min="{{ wallet_min_deposit }}" max="{{ wallet_max_deposit }}" required placeholder="Enter amount in ₹">
+            <button type="submit" class="w-full py-2 rounded-lg bg-orange-500 hover:bg-orange-600 text-white font-semibold">Deposit</button>
+          </form>
+
+          <form method="post" action="{{ url_for('wallet_withdraw') }}" class="bg-white border border-slate-200 rounded-xl p-4 space-y-3">
+            <label class="font-semibold text-slate-600">Withdraw Money</label>
+            <input type="number" name="amount" min="{{ wallet_min_withdraw }}" max="{{ wallet_max_withdraw }}" required placeholder="Enter amount in ₹">
+            <button type="submit" class="w-full py-2 rounded-lg bg-slate-700 hover:bg-slate-800 text-white font-semibold">Withdraw</button>
+          </form>
+        </div>
+      </div>
+
+      <div class="mt-8">
+        <h3 class="text-xl font-bold text-slate-800 mb-3">Wallet Transactions</h3>
+        <div class="overflow-hidden rounded-xl border border-slate-200 bg-white">
+          <table class="w-full text-sm">
+            <thead class="bg-slate-100 text-slate-600">
+              <tr>
+                <th class="text-left px-3 py-2">Type</th>
+                <th class="text-left px-3 py-2">Amount</th>
+                <th class="text-left px-3 py-2">Status</th>
+                <th class="text-left px-3 py-2">Date</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% if wallet_transactions %}
+                {% for tx in wallet_transactions %}
+                <tr class="border-t border-slate-100">
+                  <td class="px-3 py-2 capitalize">{{ tx.txn_type }}</td>
+                  <td class="px-3 py-2 font-semibold">{{ tx.amount_label }}</td>
+                  <td class="px-3 py-2">{{ tx.status }}</td>
+                  <td class="px-3 py-2">{{ tx.created_at }}</td>
+                </tr>
+                {% endfor %}
+              {% else %}
+                <tr>
+                  <td colspan="4" class="px-3 py-4 text-center text-slate-500">No wallet transactions yet.</td>
+                </tr>
+              {% endif %}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   </div>

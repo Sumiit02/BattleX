@@ -57,6 +57,8 @@ try:
 except Exception:
     LOCAL_TIMEZONE = None
 
+_EVENT_ROLLOVER_LAST_RUN_DATE = None
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 ADMIN_SETTINGS_FILE = os.path.join(BASE_DIR, 'admin_settings.json')
 
@@ -147,6 +149,10 @@ ADMIN_SETTINGS = load_admin_settings()
 MATCH_STATUSES = ('upcoming', 'ongoing', 'completed')
 MATCH_STATUS_ORDER = {'ongoing': 0, 'upcoming': 1, 'completed': 2}
 MATCH_GAME_TYPES = ('BR', 'CS', 'Custom')
+WALLET_MIN_DEPOSIT_RUPEES = 15
+WALLET_MAX_DEPOSIT_RUPEES = 1000
+WALLET_MIN_WITHDRAW_RUPEES = 50
+WALLET_MAX_WITHDRAW_RUPEES = 5000
 GAME_TYPE_LABELS = {
     'BR': 'Battle Royale',
     'CS': 'Clash Squad',
@@ -222,8 +228,81 @@ def _current_local_time():
         return datetime.now(LOCAL_TIMEZONE).replace(tzinfo=None)
     return datetime.now()
 
+
+def _move_time_value_to_date(value, target_date):
+    if not value or not target_date:
+        return value
+    dt = _parse_datetime_value(value)
+    if dt:
+        return datetime.combine(target_date, dt.time()).isoformat()
+    time_component = _parse_time_component(value)
+    if time_component:
+        return datetime.combine(target_date, time_component).isoformat()
+    return value
+
+
+def _auto_roll_event_dates_daily():
+    """Move past event dates to today once per day to keep recurring tournaments fresh."""
+    global _EVENT_ROLLOVER_LAST_RUN_DATE
+    today = _current_local_time().date()
+    if _EVENT_ROLLOVER_LAST_RUN_DATE == today:
+        return
+
+    conn = None
+    try:
+        conn = sqlite3.connect(DB_NAME)
+        cur = conn.cursor()
+        cur.execute('SELECT id, date, start_time, end_time, field_updates FROM events')
+        rows = cur.fetchall()
+        if not rows:
+            _EVENT_ROLLOVER_LAST_RUN_DATE = today
+            conn.close()
+            return
+
+        changed = False
+        now_iso = datetime.utcnow().isoformat()
+        for row in rows:
+            event_id = row[0]
+            event_date = _parse_date_value(row[1])
+            if not event_date or event_date >= today:
+                continue
+
+            new_date = today.isoformat()
+            new_start = _move_time_value_to_date(row[2], today)
+            new_end = _move_time_value_to_date(row[3], today)
+
+            try:
+                field_updates = json.loads(row[4]) if row[4] else {}
+            except Exception:
+                field_updates = {}
+            field_updates['date'] = now_iso
+            if new_start != row[2]:
+                field_updates['start_time'] = now_iso
+            if new_end != row[3]:
+                field_updates['end_time'] = now_iso
+
+            cur.execute(
+                'UPDATE events SET date = ?, start_time = ?, end_time = ?, field_updates = ? WHERE id = ?',
+                (new_date, new_start, new_end, json.dumps(field_updates), event_id)
+            )
+            changed = True
+
+        if changed:
+            conn.commit()
+        _EVENT_ROLLOVER_LAST_RUN_DATE = today
+    except Exception:
+        # Keep reads resilient even if this background consistency update fails.
+        pass
+    finally:
+        if conn is not None:
+            try:
+                conn.close()
+            except Exception:
+                pass
+
 def get_events(include_closed=False):
     # Load events from database if available; otherwise fall back to the in-memory defaults.
+    _auto_roll_event_dates_daily()
     events = []
     try:
         conn = sqlite3.connect(DB_NAME)
@@ -582,6 +661,54 @@ def _format_currency_value(amount):
     formatted = f"₹{rupees:.2f}"
     return formatted.rstrip('0').rstrip('.') if '.' in formatted else formatted
 
+
+def _wallet_amount_from_request(value):
+    if value is None:
+        return None
+    text = str(value).strip()
+    if not text:
+        return None
+    try:
+        amount = int(float(text))
+    except Exception:
+        return None
+    return amount
+
+
+def _wallet_rupees_to_paise(rupees):
+    return int(rupees) * 100
+
+
+def _wallet_load_recent_transactions(cur, username, limit=12):
+    try:
+        cur.execute(
+            'SELECT id, txn_type, amount, status, note, created_at FROM wallet_transactions WHERE username = ? ORDER BY id DESC LIMIT ?',
+            (username, limit)
+        )
+        rows = cur.fetchall()
+    except Exception:
+        return []
+    items = []
+    for row in rows:
+        items.append({
+            'id': row[0],
+            'txn_type': row[1] or '-',
+            'amount_label': _format_currency_value(row[2]),
+            'status': row[3] or 'completed',
+            'note': row[4] or '',
+            'created_at': row[5] or '-'
+        })
+    return items
+
+
+def _wallet_user_balance_paise(cur, username):
+    try:
+        cur.execute('SELECT COALESCE(wallet_balance, 0) FROM users WHERE username = ?', (username,))
+        row = cur.fetchone()
+        return int(row[0] or 0) if row else 0
+    except Exception:
+        return 0
+
 # ---------- CASHFREE CONFIGURATION ----------
 CASHFREE_APP_ID = os.getenv('CASHFREE_APP_ID', '').strip()
 CASHFREE_SECRET_KEY = os.getenv('CASHFREE_SECRET_KEY', '').strip()
@@ -881,6 +1008,7 @@ def init_db():
         )
         """)
         cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
+        cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS wallet_balance INTEGER DEFAULT 0")
 
         cur.execute("""
         CREATE TABLE IF NOT EXISTS registrations (
@@ -911,6 +1039,19 @@ def init_db():
         cur.execute("ALTER TABLE registrations ADD COLUMN IF NOT EXISTS paid_at TEXT")
         cur.execute("ALTER TABLE registrations ADD COLUMN IF NOT EXISTS payout_upi TEXT")
         cur.execute("ALTER TABLE registrations ADD COLUMN IF NOT EXISTS event_id INTEGER")
+
+        cur.execute("""
+        CREATE TABLE IF NOT EXISTS wallet_transactions (
+            id INTEGER GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+            username TEXT NOT NULL,
+            txn_type TEXT NOT NULL,
+            amount INTEGER NOT NULL,
+            status TEXT DEFAULT 'completed',
+            note TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (username) REFERENCES users (username)
+        )
+        """)
 
         cur.execute("""
         CREATE TABLE IF NOT EXISTS team_members (
@@ -1003,6 +1144,10 @@ def init_db():
     except Exception:
         # column may already exist or sqlite limitation; ignore
         pass
+    try:
+        cur.execute("ALTER TABLE users ADD COLUMN wallet_balance INTEGER DEFAULT 0")
+    except Exception:
+        pass
 
     # Registrations table for payment tracking
     cur.execute("""
@@ -1080,6 +1225,19 @@ def init_db():
         metadata TEXT,
         is_read INTEGER DEFAULT 0,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS wallet_transactions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT NOT NULL,
+        txn_type TEXT NOT NULL,
+        amount INTEGER NOT NULL,
+        status TEXT DEFAULT 'completed',
+        note TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (username) REFERENCES users (username)
     )
     """)
 
@@ -1563,12 +1721,100 @@ def player_account():
     if 'user' not in session or session.get('role') != 'player':
         flash("Please log in as a player.", "error")
         return redirect(url_for('login'))
+    username = session.get('user')
     conn = sqlite3.connect(DB_NAME)
     cur = conn.cursor()
-    cur.execute("SELECT username, email, game_id, phone FROM users WHERE username = ?", (session['user'],))
+    cur.execute("SELECT username, email, game_id, phone, COALESCE(wallet_balance, 0) FROM users WHERE username = ?", (username,))
     user = cur.fetchone()
+    wallet_balance_paise = int(user[4] or 0) if user and len(user) > 4 else _wallet_user_balance_paise(cur, username)
+    wallet_transactions = _wallet_load_recent_transactions(cur, username)
     conn.close()
-    return render_template('player_account.html', user=user)
+    return render_template(
+        'player_account.html',
+        user=user,
+        wallet_balance_paise=wallet_balance_paise,
+        wallet_balance_label=_format_currency_value(wallet_balance_paise),
+        wallet_transactions=wallet_transactions,
+        wallet_min_deposit=WALLET_MIN_DEPOSIT_RUPEES,
+        wallet_max_deposit=WALLET_MAX_DEPOSIT_RUPEES,
+        wallet_min_withdraw=WALLET_MIN_WITHDRAW_RUPEES,
+        wallet_max_withdraw=WALLET_MAX_WITHDRAW_RUPEES
+    )
+
+
+@app.route('/wallet/deposit', methods=['POST'])
+def wallet_deposit():
+    if 'user' not in session or session.get('role') != 'player':
+        flash("Please log in as a player.", "error")
+        return redirect(url_for('login'))
+
+    amount_rupees = _wallet_amount_from_request(request.form.get('amount'))
+    if amount_rupees is None:
+        flash('Enter a valid deposit amount.', 'error')
+        return redirect(url_for('player_account'))
+    if amount_rupees < WALLET_MIN_DEPOSIT_RUPEES or amount_rupees > WALLET_MAX_DEPOSIT_RUPEES:
+        flash(f'Deposit must be between ₹{WALLET_MIN_DEPOSIT_RUPEES} and ₹{WALLET_MAX_DEPOSIT_RUPEES}.', 'error')
+        return redirect(url_for('player_account'))
+
+    username = session.get('user')
+    amount_paise = _wallet_rupees_to_paise(amount_rupees)
+    conn = sqlite3.connect(DB_NAME)
+    cur = conn.cursor()
+    try:
+        cur.execute('UPDATE users SET wallet_balance = COALESCE(wallet_balance, 0) + ? WHERE username = ?', (amount_paise, username))
+        cur.execute(
+            'INSERT INTO wallet_transactions (username, txn_type, amount, status, note) VALUES (?, ?, ?, ?, ?)',
+            (username, 'deposit', amount_paise, 'completed', 'Wallet top-up')
+        )
+        conn.commit()
+        flash(f'₹{amount_rupees} deposited to wallet successfully.', 'success')
+    except Exception:
+        conn.rollback()
+        flash('Could not process wallet deposit. Please try again.', 'error')
+    finally:
+        conn.close()
+    return redirect(url_for('player_account'))
+
+
+@app.route('/wallet/withdraw', methods=['POST'])
+def wallet_withdraw():
+    if 'user' not in session or session.get('role') != 'player':
+        flash("Please log in as a player.", "error")
+        return redirect(url_for('login'))
+
+    amount_rupees = _wallet_amount_from_request(request.form.get('amount'))
+    if amount_rupees is None:
+        flash('Enter a valid withdrawal amount.', 'error')
+        return redirect(url_for('player_account'))
+    if amount_rupees < WALLET_MIN_WITHDRAW_RUPEES or amount_rupees > WALLET_MAX_WITHDRAW_RUPEES:
+        flash(f'Withdrawal must be between ₹{WALLET_MIN_WITHDRAW_RUPEES} and ₹{WALLET_MAX_WITHDRAW_RUPEES}.', 'error')
+        return redirect(url_for('player_account'))
+
+    username = session.get('user')
+    amount_paise = _wallet_rupees_to_paise(amount_rupees)
+    conn = sqlite3.connect(DB_NAME)
+    cur = conn.cursor()
+    try:
+        cur.execute(
+            'UPDATE users SET wallet_balance = COALESCE(wallet_balance, 0) - ? WHERE username = ? AND COALESCE(wallet_balance, 0) >= ?',
+            (amount_paise, username, amount_paise)
+        )
+        if cur.rowcount == 0:
+            conn.rollback()
+            flash('Insufficient wallet balance.', 'error')
+            return redirect(url_for('player_account'))
+        cur.execute(
+            'INSERT INTO wallet_transactions (username, txn_type, amount, status, note) VALUES (?, ?, ?, ?, ?)',
+            (username, 'withdrawal', amount_paise, 'completed', 'Wallet withdrawal')
+        )
+        conn.commit()
+        flash(f'₹{amount_rupees} withdrawn from wallet successfully.', 'success')
+    except Exception:
+        conn.rollback()
+        flash('Could not process wallet withdrawal. Please try again.', 'error')
+    finally:
+        conn.close()
+    return redirect(url_for('player_account'))
 
 
 @app.route('/settings', methods=['GET', 'POST'])
@@ -2506,6 +2752,7 @@ def admin_events():
     if 'user' not in session or session.get('role') != 'admin':
         flash('Admins only', 'error')
         return redirect(url_for('admin_login'))
+    _auto_roll_event_dates_daily()
     conn = sqlite3.connect(DB_NAME)
     cur = conn.cursor()
     cur.execute('SELECT id, slug, title, mode, date, prize, max_slots, slots_left, is_open, entry_fee, prize_pool, image, field_updates, region, platform, start_time, end_time, description, rules FROM events ORDER BY id')
@@ -2548,6 +2795,7 @@ def admin_events_json():
     """Return raw events rows as JSON for admin debugging."""
     if 'user' not in session or session.get('role') != 'admin':
         return jsonify({'success': False, 'error': 'Admins only'}), 403
+    _auto_roll_event_dates_daily()
     try:
         conn = sqlite3.connect(DB_NAME)
         cur = conn.cursor()
@@ -2637,6 +2885,7 @@ def admin_event_edit(eid):
     if 'user' not in session or session.get('role') != 'admin':
         flash('Admins only', 'error')
         return redirect(url_for('admin_login'))
+    _auto_roll_event_dates_daily()
     conn = sqlite3.connect(DB_NAME)
     cur = conn.cursor()
     if request.method == 'POST':

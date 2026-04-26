@@ -63,6 +63,7 @@ except PermissionError:
     os.makedirs(STATIC_UPLOAD_FOLDER, exist_ok=True)
     print(f"UPLOAD_DIR not writable, using fallback: {STATIC_UPLOAD_FOLDER}")
 APP_TIMEZONE = os.getenv('APP_TIMEZONE', 'Asia/Kolkata')
+APP_BASE_URL = (os.getenv('APP_BASE_URL') or '').strip().rstrip('/')
 try:
     LOCAL_TIMEZONE = ZoneInfo(APP_TIMEZONE)
 except Exception:
@@ -774,6 +775,20 @@ def _cashfree_headers():
         'x-api-version': CASHFREE_API_VERSION,
         'Content-Type': 'application/json'
     }
+
+
+def _cashfree_callback_url(endpoint_name):
+    path = url_for(endpoint_name)
+    if APP_BASE_URL:
+        base = APP_BASE_URL
+        if (IS_PRODUCTION or CASHFREE_ENV == 'production') and base.startswith('http://'):
+            base = 'https://' + base[len('http://'):]
+        return f"{base}{path}"
+
+    callback_url = url_for(endpoint_name, _external=True)
+    if (IS_PRODUCTION or CASHFREE_ENV == 'production') and callback_url.startswith('http://'):
+        callback_url = 'https://' + callback_url[len('http://'):]
+    return callback_url
 
 
 def _cashfree_fetch_order(order_id):
@@ -2109,7 +2124,7 @@ def wallet_deposit():
         customer_phone = '9999999999'
 
     cf_order_id = f"WLT{int(datetime.utcnow().timestamp())}{secrets.randbelow(1000):03d}"
-    callback_url = url_for('wallet_cashfree_callback', _external=True)
+    callback_url = _cashfree_callback_url('wallet_cashfree_callback')
     return_url = f"{callback_url}?order_id={{order_id}}"
 
     order_payload = {
@@ -2772,7 +2787,7 @@ def create_payment_order():
         else:
             cf_order_id = f"BX{int(datetime.utcnow().timestamp())}{secrets.randbelow(1000000):06d}"
 
-        callback_url = url_for('cashfree_payment_callback', _external=True)
+        callback_url = _cashfree_callback_url('cashfree_payment_callback')
         registration_part = str(reg_id) if reg_id else ''
         return_url = f"{callback_url}?registration_id={registration_part}&order_id={{order_id}}"
 

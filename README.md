@@ -136,3 +136,31 @@ Recommended env vars:
 
 - `CASHFREE_WEBHOOK_SECRET` (if not set, app falls back to `CASHFREE_SECRET_KEY`)
 - `CASHFREE_WEBHOOK_REQUIRE_SIGNATURE=1` (recommended for production)
+
+## Cashfree Payouts (Automatic Bank/UPI Withdrawals)
+
+Withdrawal requests are now wired to a payout provider path when enabled. This is separate from the payment gateway keys.
+
+Required env vars for automatic payouts:
+
+- `CASHFREE_PAYOUTS_ENABLED=1`
+- `CASHFREE_PAYOUTS_BASE_URL` (your Cashfree Payouts API base URL)
+- `CASHFREE_PAYOUTS_CLIENT_ID`
+- `CASHFREE_PAYOUTS_SECRET_KEY`
+- `CASHFREE_PAYOUTS_REQUEST_PATH=/requestTransfer`
+- `CASHFREE_PAYOUTS_STATUS_PATH=/getTransferStatus`
+- `CASHFREE_PAYOUTS_WEBHOOK_SECRET`
+- `CASHFREE_PAYOUTS_REQUIRE_SIGNATURE=1`
+- `CASHFREE_PAYOUTS_SOURCE=battlex`
+
+Behavior:
+
+- When an admin clicks **Send Payout**, the app attempts a live transfer request.
+- If the payout request is accepted, the withdrawal moves to `processing` and a provider reference is stored.
+- If the payout request fails, the wallet is refunded automatically and the request is marked `failed`.
+- Cashfree payout webhooks can mark the transfer as `paid` or `failed` later using `/api/cashfree/payouts/webhook`.
+
+Render setup note:
+
+- The production blueprint in `render.yaml` enables `CASHFREE_PAYOUTS_ENABLED=1`.
+- You still need to paste the payout client id, secret key, and webhook secret into Render before live payouts can actually move money.

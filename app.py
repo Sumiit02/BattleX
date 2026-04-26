@@ -763,6 +763,23 @@ CASHFREE_WEBHOOK_REQUIRE_SIGNATURE = _is_truthy(
 )
 CASHFREE_TERMINAL_ORDER_STATUSES = {'PAID', 'EXPIRED', 'TERMINATED', 'CANCELLED', 'FAILED'}
 
+CASHFREE_PAYOUTS_ENABLED = _is_truthy(os.getenv('CASHFREE_PAYOUTS_ENABLED', '0'))
+CASHFREE_PAYOUTS_CLIENT_ID = (os.getenv('CASHFREE_PAYOUTS_CLIENT_ID') or CASHFREE_APP_ID).strip()
+CASHFREE_PAYOUTS_SECRET_KEY = (os.getenv('CASHFREE_PAYOUTS_SECRET_KEY') or CASHFREE_SECRET_KEY).strip()
+CASHFREE_PAYOUTS_BASE_URL = (
+    os.getenv('CASHFREE_PAYOUTS_BASE_URL')
+    or ('https://api.cashfree.com/payout/v1' if CASHFREE_ENV == 'production' else 'https://sandbox.cashfree.com/payout/v1')
+).strip().rstrip('/')
+CASHFREE_PAYOUTS_REQUEST_PATH = (os.getenv('CASHFREE_PAYOUTS_REQUEST_PATH') or '/requestTransfer').strip()
+CASHFREE_PAYOUTS_STATUS_PATH = (os.getenv('CASHFREE_PAYOUTS_STATUS_PATH') or '/getTransferStatus').strip()
+CASHFREE_PAYOUTS_WEBHOOK_SECRET = (os.getenv('CASHFREE_PAYOUTS_WEBHOOK_SECRET') or CASHFREE_PAYOUTS_SECRET_KEY).strip()
+CASHFREE_PAYOUTS_REQUIRE_SIGNATURE = _is_truthy(
+    os.getenv('CASHFREE_PAYOUTS_REQUIRE_SIGNATURE', '1' if IS_PRODUCTION else '0')
+)
+CASHFREE_PAYOUTS_SOURCE = (os.getenv('CASHFREE_PAYOUTS_SOURCE') or 'battlex').strip()
+CASHFREE_PAYOUTS_METHOD_BANK = (os.getenv('CASHFREE_PAYOUTS_METHOD_BANK') or 'banktransfer').strip()
+CASHFREE_PAYOUTS_METHOD_UPI = (os.getenv('CASHFREE_PAYOUTS_METHOD_UPI') or 'upi').strip()
+
 
 def is_cashfree_ready():
     return bool(CASHFREE_APP_ID and CASHFREE_SECRET_KEY)
@@ -775,6 +792,199 @@ def _cashfree_headers():
         'x-api-version': CASHFREE_API_VERSION,
         'Content-Type': 'application/json'
     }
+
+
+def _cashfree_payouts_ready():
+    return bool(CASHFREE_PAYOUTS_ENABLED and CASHFREE_PAYOUTS_CLIENT_ID and CASHFREE_PAYOUTS_SECRET_KEY and CASHFREE_PAYOUTS_BASE_URL)
+
+
+def _cashfree_payouts_headers():
+    return {
+        'x-client-id': CASHFREE_PAYOUTS_CLIENT_ID,
+        'x-client-secret': CASHFREE_PAYOUTS_SECRET_KEY,
+        'Content-Type': 'application/json'
+    }
+
+
+def _cashfree_payout_request_url():
+    return f"{CASHFREE_PAYOUTS_BASE_URL}{CASHFREE_PAYOUTS_REQUEST_PATH}"
+
+
+def _cashfree_payout_status_url(transfer_id):
+    return f"{CASHFREE_PAYOUTS_BASE_URL}{CASHFREE_PAYOUTS_STATUS_PATH}?transferId={transfer_id}"
+
+
+def _cashfree_payout_transfer_id(request_id):
+    return f"WDR{int(request_id)}{int(datetime.utcnow().timestamp())}"
+
+
+def _normalize_payout_status(value):
+    text = str(value or '').strip().lower()
+    if text in {'success', 'succeeded', 'paid', 'completed', 'processed'}:
+        return 'paid'
+    if text in {'processing', 'pending', 'initiated', 'submitted', 'in_progress'}:
+        return 'processing'
+    if text in {'failed', 'rejected', 'cancelled', 'canceled', 'returned'}:
+        return 'failed'
+    return text or 'processing'
+
+
+def _wallet_prepare_payout_payload(request_row):
+    request_id, username, amount_paise, method, holder_name, bank_account_number, ifsc_code, upi_id, mobile_number, status = request_row[:10]
+    transfer_id = _cashfree_payout_transfer_id(request_id)
+    amount_rupees = round(float(amount_paise or 0) / 100.0, 2)
+    payload = {
+        'transfer_id': transfer_id,
+        'amount': amount_rupees,
+        'currency': 'INR',
+        'source': CASHFREE_PAYOUTS_SOURCE,
+        'purpose': 'wallet_withdrawal',
+        'beneficiary_name': holder_name,
+        'reference_id': f'wallet_withdrawal_{request_id}',
+        'transfer_note': f'BATTLE-X wallet withdrawal #{request_id}',
+    }
+    if method == 'bank':
+        payload.update({
+            'transfer_mode': CASHFREE_PAYOUTS_METHOD_BANK,
+            'bank_account_number': bank_account_number,
+            'ifsc': ifsc_code,
+            'bank_account_name': holder_name,
+        })
+    else:
+        payload.update({
+            'transfer_mode': CASHFREE_PAYOUTS_METHOD_UPI,
+            'upi_id': upi_id,
+            'mobile_number': mobile_number,
+        })
+    return transfer_id, payload
+
+
+def _cashfree_create_payout_transfer(request_row):
+    if not _cashfree_payouts_ready():
+        return False, {}, 'Cashfree payouts are not configured.'
+
+    transfer_id, payload = _wallet_prepare_payout_payload(request_row)
+    try:
+        resp = requests.post(
+            _cashfree_payout_request_url(),
+            headers=_cashfree_payouts_headers(),
+            json=payload,
+            timeout=30
+        )
+    except Exception as ex:
+        return False, {}, f'Cashfree payout request failed: {ex}'
+
+    try:
+        response_data = resp.json() if resp.content else {}
+    except Exception:
+        response_data = {}
+
+    if resp.status_code >= 400:
+        return False, response_data, response_data.get('message') or response_data.get('error') or 'Unable to create payout transfer'
+
+    provider_reference = (
+        response_data.get('transfer_id')
+        or response_data.get('reference_id')
+        or response_data.get('payout_id')
+        or response_data.get('data', {}).get('transfer_id')
+        or transfer_id
+    )
+    provider_status = _normalize_payout_status(
+        response_data.get('status')
+        or response_data.get('transfer_status')
+        or response_data.get('data', {}).get('status')
+        or 'processing'
+    )
+    return True, {
+        'transfer_id': provider_reference,
+        'transfer_status': provider_status,
+        'provider_response': response_data,
+    }, ''
+
+
+def _wallet_apply_payout_result(request_id, provider_status, provider_reference=None, provider_response=None):
+    provider_status = _normalize_payout_status(provider_status)
+    conn = sqlite3.connect(DB_NAME)
+    cur = conn.cursor()
+    try:
+        cur.execute(
+            'SELECT id, username, amount, method, status, provider_reference FROM wallet_withdrawal_requests WHERE id = ?',
+            (request_id,)
+        )
+        row = cur.fetchone()
+        if not row:
+            conn.close()
+            return False, 'Withdrawal request not found.'
+
+        _, username, amount_paise, method, status, existing_reference = row
+        current_status = str(status or '').lower()
+        if current_status in {'paid', 'failed', 'rejected', 'completed'}:
+            conn.close()
+            return True, 'Already finalized.'
+
+        provider_reference = provider_reference or existing_reference or ''
+        response_json = json.dumps(provider_response or {}) if not isinstance(provider_response, str) else provider_response
+
+        if provider_status == 'paid':
+            cur.execute(
+                'UPDATE wallet_withdrawal_requests SET status = ?, provider_status = ?, provider_reference = ?, provider_response = ?, payout_completed_at = ? WHERE id = ?',
+                ('paid', provider_status, provider_reference, response_json, datetime.utcnow().isoformat(), request_id)
+            )
+            cur.execute(
+                'UPDATE wallet_transactions SET status = ?, note = ? WHERE withdrawal_request_id = ? AND txn_type = ? AND status = ?',
+                ('completed', f'Withdrawal paid successfully ({provider_reference or request_id})', request_id, 'withdrawal', 'processing')
+            )
+            cur.execute(
+                'INSERT INTO notifications (type, message, metadata) VALUES (?, ?, ?)',
+                ('wallet_withdraw_paid', f'Wallet withdrawal paid for {username}', json.dumps({'withdrawal_request_id': request_id, 'username': username, 'method': method, 'reference': provider_reference}))
+            )
+            conn.commit()
+            conn.close()
+            return True, 'Withdrawal marked paid.'
+
+        if provider_status == 'processing':
+            cur.execute(
+                'UPDATE wallet_withdrawal_requests SET status = ?, provider_status = ?, provider_reference = ?, provider_response = ?, payout_attempted_at = ? WHERE id = ?',
+                ('processing', provider_status, provider_reference, response_json, datetime.utcnow().isoformat(), request_id)
+            )
+            cur.execute(
+                'UPDATE wallet_transactions SET status = ?, note = ? WHERE withdrawal_request_id = ? AND txn_type = ? AND status = ?',
+                ('processing', f'Withdrawal transfer initiated ({provider_reference or request_id})', request_id, 'withdrawal', 'pending')
+            )
+            cur.execute(
+                'INSERT INTO notifications (type, message, metadata) VALUES (?, ?, ?)',
+                ('wallet_withdraw_processing', f'Wallet withdrawal processing for {username}', json.dumps({'withdrawal_request_id': request_id, 'username': username, 'method': method, 'reference': provider_reference}))
+            )
+            conn.commit()
+            conn.close()
+            return True, 'Withdrawal marked processing.'
+
+        # failed/unknown statuses refund the wallet immediately
+        cur.execute('UPDATE wallet_withdrawal_requests SET status = ?, provider_status = ?, provider_reference = ?, provider_response = ?, payout_completed_at = ? WHERE id = ?',
+                    ('failed', provider_status, provider_reference, response_json, datetime.utcnow().isoformat(), request_id))
+        cur.execute('UPDATE users SET wallet_balance = COALESCE(wallet_balance, 0) + ? WHERE username = ?', (int(amount_paise or 0), username))
+        cur.execute(
+            'UPDATE wallet_transactions SET status = ?, note = ? WHERE withdrawal_request_id = ? AND txn_type = ? AND status IN (?, ?)',
+            ('failed', f'Withdrawal failed ({provider_reference or request_id}); wallet refunded', request_id, 'withdrawal', 'pending', 'processing')
+        )
+        cur.execute(
+            'INSERT INTO wallet_transactions (username, txn_type, amount, status, note, withdrawal_request_id) VALUES (?, ?, ?, ?, ?, ?)',
+            (username, 'refund', int(amount_paise or 0), 'completed', f'Auto-refund for failed payout #{request_id}', request_id)
+        )
+        cur.execute(
+            'INSERT INTO notifications (type, message, metadata) VALUES (?, ?, ?)',
+            ('wallet_withdraw_failed', f'Wallet withdrawal failed and refunded for {username}', json.dumps({'withdrawal_request_id': request_id, 'username': username, 'method': method, 'reference': provider_reference}))
+        )
+        conn.commit()
+        conn.close()
+        return True, 'Withdrawal failed and refunded.'
+    except Exception as ex:
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+        conn.close()
+        return False, str(ex)
 
 
 def _cashfree_callback_url(endpoint_name):
@@ -1284,10 +1494,22 @@ def init_db():
             upi_id TEXT,
             mobile_number TEXT,
             status TEXT DEFAULT 'pending',
+            provider TEXT,
+            provider_reference TEXT,
+            provider_status TEXT,
+            provider_response TEXT,
+            payout_attempted_at TIMESTAMP,
+            payout_completed_at TIMESTAMP,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (username) REFERENCES users (username)
         )
         """)
+        cur.execute("ALTER TABLE wallet_withdrawal_requests ADD COLUMN IF NOT EXISTS provider TEXT")
+        cur.execute("ALTER TABLE wallet_withdrawal_requests ADD COLUMN IF NOT EXISTS provider_reference TEXT")
+        cur.execute("ALTER TABLE wallet_withdrawal_requests ADD COLUMN IF NOT EXISTS provider_status TEXT")
+        cur.execute("ALTER TABLE wallet_withdrawal_requests ADD COLUMN IF NOT EXISTS provider_response TEXT")
+        cur.execute("ALTER TABLE wallet_withdrawal_requests ADD COLUMN IF NOT EXISTS payout_attempted_at TIMESTAMP")
+        cur.execute("ALTER TABLE wallet_withdrawal_requests ADD COLUMN IF NOT EXISTS payout_completed_at TIMESTAMP")
 
         cur.execute("""
         CREATE TABLE IF NOT EXISTS cashfree_order_idempotency (
@@ -1521,10 +1743,40 @@ def init_db():
         upi_id TEXT,
         mobile_number TEXT,
         status TEXT DEFAULT 'pending',
+            provider TEXT,
+            provider_reference TEXT,
+            provider_status TEXT,
+            provider_response TEXT,
+            payout_attempted_at TEXT,
+            payout_completed_at TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (username) REFERENCES users (username)
     )
     """)
+    try:
+        cur.execute("ALTER TABLE wallet_withdrawal_requests ADD COLUMN provider TEXT")
+    except Exception:
+        pass
+    try:
+        cur.execute("ALTER TABLE wallet_withdrawal_requests ADD COLUMN provider_reference TEXT")
+    except Exception:
+        pass
+    try:
+        cur.execute("ALTER TABLE wallet_withdrawal_requests ADD COLUMN provider_status TEXT")
+    except Exception:
+        pass
+    try:
+        cur.execute("ALTER TABLE wallet_withdrawal_requests ADD COLUMN provider_response TEXT")
+    except Exception:
+        pass
+    try:
+        cur.execute("ALTER TABLE wallet_withdrawal_requests ADD COLUMN payout_attempted_at TEXT")
+    except Exception:
+        pass
+    try:
+        cur.execute("ALTER TABLE wallet_withdrawal_requests ADD COLUMN payout_completed_at TEXT")
+    except Exception:
+        pass
 
     cur.execute("""
     CREATE TABLE IF NOT EXISTS cashfree_order_idempotency (
@@ -2964,6 +3216,71 @@ def cashfree_webhook():
         'result': finalize_payload
     }), code
 
+
+@app.route('/api/cashfree/payouts/webhook', methods=['POST'])
+def cashfree_payouts_webhook():
+    raw_body = request.get_data(cache=True)
+    signature = (
+        request.headers.get('x-webhook-signature')
+        or request.headers.get('x-cashfree-signature')
+        or request.headers.get('x-signature')
+        or ''
+    )
+    timestamp = request.headers.get('x-webhook-timestamp') or request.headers.get('x-timestamp')
+
+    if CASHFREE_PAYOUTS_WEBHOOK_SECRET:
+        provided = _normalize_cashfree_signature(signature)
+        if not provided and CASHFREE_PAYOUTS_REQUIRE_SIGNATURE:
+            return jsonify({'success': False, 'error': 'Invalid payout webhook signature.'}), 401
+        body_text = raw_body.decode('utf-8', errors='ignore')
+        candidate_digests = set()
+        candidate_digests.add(hmac.new(CASHFREE_PAYOUTS_WEBHOOK_SECRET.encode('utf-8'), raw_body if isinstance(raw_body, (bytes, bytearray)) else body_text.encode('utf-8'), hashlib.sha256).hexdigest().lower())
+        candidate_digests.add(hmac.new(CASHFREE_PAYOUTS_WEBHOOK_SECRET.encode('utf-8'), body_text.encode('utf-8'), hashlib.sha256).hexdigest().lower())
+        if timestamp:
+            candidate_digests.add(hmac.new(CASHFREE_PAYOUTS_WEBHOOK_SECRET.encode('utf-8'), f"{timestamp}.{body_text}".encode('utf-8'), hashlib.sha256).hexdigest().lower())
+        if provided and not any(hmac.compare_digest(provided, digest) for digest in candidate_digests):
+            return jsonify({'success': False, 'error': 'Invalid payout webhook signature.'}), 401
+
+    payload = request.get_json(silent=True) or {}
+    data = payload.get('data') or payload
+    transfer_id = (
+        data.get('transfer_id')
+        or data.get('request_id')
+        or data.get('reference_id')
+        or payload.get('transfer_id')
+        or payload.get('request_id')
+        or payload.get('reference_id')
+    )
+    transfer_status = _normalize_payout_status(data.get('status') or data.get('transfer_status') or payload.get('status') or payload.get('transfer_status'))
+    if not transfer_id:
+        return jsonify({'success': False, 'error': 'Missing transfer id.'}), 400
+
+    conn = sqlite3.connect(DB_NAME)
+    cur = conn.cursor()
+    try:
+        cur.execute('SELECT id FROM wallet_withdrawal_requests WHERE provider_reference = ? ORDER BY id DESC LIMIT 1', (transfer_id,))
+        row = cur.fetchone()
+        if not row:
+            cur.execute('SELECT id FROM wallet_withdrawal_requests WHERE id = ? ORDER BY id DESC LIMIT 1', (int(''.join(filter(str.isdigit, str(transfer_id))) or 0),))
+            row = cur.fetchone()
+        if not row:
+            conn.close()
+            return jsonify({'success': True, 'ignored': True, 'reason': 'Withdrawal request not found.'}), 200
+
+        request_id = row[0]
+        ok, message = _wallet_apply_payout_result(request_id, transfer_status, provider_reference=transfer_id, provider_response=payload)
+        if not ok:
+            conn.close()
+            return jsonify({'success': False, 'error': message}), 500
+        conn.close()
+        return jsonify({'success': True, 'request_id': request_id, 'transfer_id': transfer_id, 'status': transfer_status}), 200
+    except Exception as ex:
+        try:
+            conn.close()
+        except Exception:
+            pass
+        return jsonify({'success': False, 'error': str(ex)}), 500
+
 @app.route('/verify_payment', methods=['POST'])
 def verify_payment():
     """Verify Cashfree payment status and finalize registration."""
@@ -4091,7 +4408,7 @@ def admin_wallet():
     conn = sqlite3.connect(DB_NAME)
     cur = conn.cursor()
     cur.execute(
-        '''SELECT id, username, amount, method, holder_name, bank_account_number, ifsc_code, upi_id, mobile_number, status, created_at
+        '''SELECT id, username, amount, method, holder_name, bank_account_number, ifsc_code, upi_id, mobile_number, status, provider, provider_reference, provider_status, created_at
            FROM wallet_withdrawal_requests
            ORDER BY CASE WHEN status = 'pending' THEN 0 ELSE 1 END, id DESC'''
     )
@@ -4112,7 +4429,10 @@ def admin_wallet():
             'upi_id': r[7] or '',
             'mobile_number': r[8] or '',
             'status': r[9] or 'pending',
-            'created_at': r[10] or '-'
+            'provider': r[10] or '',
+            'provider_reference': r[11] or '',
+            'provider_status': r[12] or '',
+            'created_at': r[13] or '-'
         })
     return render_template('admin_wallet.html', requests_list=requests_list)
 
@@ -4132,7 +4452,7 @@ def admin_wallet_withdrawal_decision(request_id):
     cur = conn.cursor()
     try:
         cur.execute(
-            'SELECT id, username, amount, method, status FROM wallet_withdrawal_requests WHERE id = ?',
+            'SELECT id, username, amount, method, holder_name, bank_account_number, ifsc_code, upi_id, mobile_number, status, provider_reference, provider_status FROM wallet_withdrawal_requests WHERE id = ?',
             (request_id,)
         )
         row = cur.fetchone()
@@ -4141,24 +4461,74 @@ def admin_wallet_withdrawal_decision(request_id):
             flash('Withdrawal request not found.', 'error')
             return redirect(url_for('admin_wallet'))
 
-        _, username, amount_paise, method, status = row
+        request_row = row
+        _, username, amount_paise, method, holder_name, bank_account_number, ifsc_code, upi_id, mobile_number, status, provider_reference, provider_status = request_row
         if str(status or '').lower() != 'pending':
             conn.close()
             flash('Withdrawal request already processed.', 'info')
             return redirect(url_for('admin_wallet'))
 
         if action == 'approve':
-            cur.execute('UPDATE wallet_withdrawal_requests SET status = ? WHERE id = ?', ('approved', request_id))
+            if not _cashfree_payouts_ready():
+                conn.rollback()
+                cur.execute('UPDATE users SET wallet_balance = COALESCE(wallet_balance, 0) + ? WHERE username = ?', (amount_paise, username))
+                cur.execute('UPDATE wallet_withdrawal_requests SET status = ?, provider_status = ?, provider_response = ? WHERE id = ?', ('failed', 'failed', json.dumps({'error': 'Cashfree payouts are not configured.'}), request_id))
+                cur.execute(
+                    'UPDATE wallet_transactions SET status = ?, note = ? WHERE withdrawal_request_id = ? AND txn_type = ? AND status = ?',
+                    ('failed', f'Withdrawal request #{request_id} failed: payouts not configured', request_id, 'withdrawal', 'pending')
+                )
+                cur.execute(
+                    'INSERT INTO wallet_transactions (username, txn_type, amount, status, note, withdrawal_request_id) VALUES (?, ?, ?, ?, ?, ?)',
+                    (username, 'refund', amount_paise, 'completed', f'Auto-refund for withdrawal #{request_id} (payouts not configured)', request_id)
+                )
+                cur.execute(
+                    'INSERT INTO notifications (type, message, metadata) VALUES (?, ?, ?)',
+                    ('wallet_withdraw_failed', f'Wallet withdrawal could not be sent for {username}; refunded', json.dumps({'withdrawal_request_id': request_id, 'username': username, 'method': method}))
+                )
+                conn.commit()
+                flash('Cashfree payouts are not configured. Wallet was refunded.', 'error')
+                return redirect(url_for('admin_wallet'))
+
+            ok, payout_payload, payout_error = _cashfree_create_payout_transfer(request_row)
+            if not ok:
+                cur.execute('UPDATE users SET wallet_balance = COALESCE(wallet_balance, 0) + ? WHERE username = ?', (amount_paise, username))
+                cur.execute('UPDATE wallet_withdrawal_requests SET status = ?, provider_status = ?, provider_response = ? WHERE id = ?', ('failed', 'failed', json.dumps({'error': payout_error, 'response': payout_payload}), request_id))
+                cur.execute(
+                    'UPDATE wallet_transactions SET status = ?, note = ? WHERE withdrawal_request_id = ? AND txn_type = ? AND status = ?',
+                    ('failed', f'Withdrawal request #{request_id} failed: payout transfer could not be created', request_id, 'withdrawal', 'pending')
+                )
+                cur.execute(
+                    'INSERT INTO wallet_transactions (username, txn_type, amount, status, note, withdrawal_request_id) VALUES (?, ?, ?, ?, ?, ?)',
+                    (username, 'refund', amount_paise, 'completed', f'Auto-refund for failed payout #{request_id}', request_id)
+                )
+                cur.execute(
+                    'INSERT INTO notifications (type, message, metadata) VALUES (?, ?, ?)',
+                    ('wallet_withdraw_failed', f'Wallet withdrawal payout failed for {username}; refunded', json.dumps({'withdrawal_request_id': request_id, 'username': username, 'method': method, 'error': payout_error}))
+                )
+                conn.commit()
+                flash(f'Payout transfer failed: {payout_error}', 'error')
+                return redirect(url_for('admin_wallet'))
+
+            provider_reference = payout_payload.get('transfer_id') or provider_reference or f'WDR{request_id}'
+            provider_status = payout_payload.get('transfer_status') or payout_payload.get('status') or 'processing'
+            normalized_status = _normalize_payout_status(provider_status)
+            cur.execute(
+                'UPDATE wallet_withdrawal_requests SET status = ?, provider = ?, provider_reference = ?, provider_status = ?, provider_response = ?, payout_attempted_at = ? WHERE id = ?',
+                (normalized_status, 'cashfree', provider_reference, normalized_status, json.dumps(payout_payload.get('provider_response') or payout_payload), datetime.utcnow().isoformat(), request_id)
+            )
             cur.execute(
                 'UPDATE wallet_transactions SET status = ?, note = ? WHERE withdrawal_request_id = ? AND txn_type = ? AND status = ?',
-                ('completed', f'Withdrawal request #{request_id} approved', request_id, 'withdrawal', 'pending')
+                ('processing' if normalized_status != 'paid' else 'completed', f'Withdrawal transfer initiated ({provider_reference})', request_id, 'withdrawal', 'pending')
             )
             cur.execute(
                 'INSERT INTO notifications (type, message, metadata) VALUES (?, ?, ?)',
-                ('wallet_withdraw_approved', f'Wallet withdrawal approved for {username}', json.dumps({'withdrawal_request_id': request_id, 'username': username, 'method': method}))
+                ('wallet_withdraw_processing' if normalized_status != 'paid' else 'wallet_withdraw_paid', f'Wallet withdrawal {normalized_status} for {username}', json.dumps({'withdrawal_request_id': request_id, 'username': username, 'method': method, 'reference': provider_reference}))
             )
             conn.commit()
-            flash('Withdrawal request approved.', 'success')
+            if normalized_status == 'paid':
+                flash('Withdrawal sent and marked paid by provider.', 'success')
+            else:
+                flash(f'Withdrawal transfer submitted. Current status: {normalized_status}.', 'success')
         else:
             cur.execute('UPDATE wallet_withdrawal_requests SET status = ? WHERE id = ?', ('rejected', request_id))
             cur.execute('UPDATE users SET wallet_balance = COALESCE(wallet_balance, 0) + ? WHERE username = ?', (amount_paise, username))

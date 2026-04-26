@@ -28,6 +28,28 @@ services:
         value: /var/data/uploads
       - key: APP_TIMEZONE
         value: Asia/Kolkata
+      - key: CASHFREE_PAYOUTS_ENABLED
+        value: "1"
+      - key: CASHFREE_PAYOUTS_BASE_URL
+        value: https://api.cashfree.com/payout/v1
+      - key: CASHFREE_PAYOUTS_REQUEST_PATH
+        value: /requestTransfer
+      - key: CASHFREE_PAYOUTS_STATUS_PATH
+        value: /getTransferStatus
+      - key: CASHFREE_PAYOUTS_SOURCE
+        value: battlex
+      - key: CASHFREE_PAYOUTS_METHOD_BANK
+        value: banktransfer
+      - key: CASHFREE_PAYOUTS_METHOD_UPI
+        value: upi
+      - key: CASHFREE_PAYOUTS_CLIENT_ID
+        sync: false
+      - key: CASHFREE_PAYOUTS_SECRET_KEY
+        sync: false
+      - key: CASHFREE_PAYOUTS_WEBHOOK_SECRET
+        sync: false
+      - key: CASHFREE_PAYOUTS_REQUIRE_SIGNATURE
+        value: "1"
       - key: CASHFREE_WEBHOOK_REQUIRE_SIGNATURE
         value: "1"
       - key: CASHFREE_WEBHOOK_SECRET

@@ -55,9 +55,15 @@
                     <div><span class="font-semibold">UPI:</span> {{ req.upi_id }}</div>
                     <div><span class="font-semibold">Mobile:</span> {{ req.mobile_number }}</div>
                   {% endif %}
+                  {% if req.provider_reference %}
+                    <div><span class="font-semibold">Provider Ref:</span> {{ req.provider_reference }}</div>
+                  {% endif %}
+                  {% if req.provider_status %}
+                    <div><span class="font-semibold">Provider Status:</span> {{ req.provider_status }}</div>
+                  {% endif %}
                 </td>
                 <td class="px-3 py-3">
-                  <span class="px-2 py-1 rounded-full text-xs font-semibold {% if req.status == 'pending' %}bg-amber-100 text-amber-700{% elif req.status == 'approved' %}bg-emerald-100 text-emerald-700{% elif req.status == 'rejected' %}bg-red-100 text-red-700{% else %}bg-slate-100 text-slate-700{% endif %}">
+                  <span class="px-2 py-1 rounded-full text-xs font-semibold {% if req.status == 'pending' %}bg-amber-100 text-amber-700{% elif req.status in ['approved', 'processing'] %}bg-blue-100 text-blue-700{% elif req.status in ['paid'] %}bg-emerald-100 text-emerald-700{% elif req.status in ['rejected', 'failed'] %}bg-red-100 text-red-700{% else %}bg-slate-100 text-slate-700{% endif %}">
                     {{ req.status }}
                   </span>
                 </td>
@@ -67,7 +73,7 @@
                     <div class="flex gap-2">
                       <form method="post" action="{{ url_for('admin_wallet_withdrawal_decision', request_id=req.id) }}">
                         <input type="hidden" name="action" value="approve">
-                        <button type="submit" class="px-3 py-1.5 text-xs rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold">Approve</button>
+                        <button type="submit" class="px-3 py-1.5 text-xs rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold">Send Payout</button>
                       </form>
                       <form method="post" action="{{ url_for('admin_wallet_withdrawal_decision', request_id=req.id) }}">
                         <input type="hidden" name="action" value="reject">

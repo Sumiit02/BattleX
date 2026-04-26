@@ -28,6 +28,10 @@ services:
         value: /var/data/uploads
       - key: APP_TIMEZONE
         value: Asia/Kolkata
+      - key: CASHFREE_WEBHOOK_REQUIRE_SIGNATURE
+        value: "1"
+      - key: CASHFREE_WEBHOOK_SECRET
+        sync: false
       - key: SECRET_KEY
         generateValue: true
     disk:

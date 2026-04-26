@@ -16,11 +16,22 @@ except ImportError:
     OAuth2Session = None
 import secrets
 import json
+import hashlib
+import hmac
 from datetime import datetime
 from zoneinfo import ZoneInfo
 import re
 from werkzeug.utils import secure_filename
 from urllib.parse import urlparse, urlencode
+
+try:
+    from dotenv import load_dotenv
+except ImportError:
+    load_dotenv = None
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+if load_dotenv:
+    load_dotenv(os.path.join(BASE_DIR, '.env'))
 
 # Environment helpers
 def _is_truthy(value):
@@ -58,8 +69,6 @@ except Exception:
     LOCAL_TIMEZONE = None
 
 _EVENT_ROLLOVER_LAST_RUN_DATE = None
-
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 ADMIN_SETTINGS_FILE = os.path.join(BASE_DIR, 'admin_settings.json')
 
 # Bootstrap admin (can be overridden by env vars on Render)
@@ -747,6 +756,11 @@ CASHFREE_SECRET_KEY = os.getenv('CASHFREE_SECRET_KEY', '').strip()
 CASHFREE_ENV = (os.getenv('CASHFREE_ENV', 'sandbox') or 'sandbox').strip().lower()
 CASHFREE_API_VERSION = os.getenv('CASHFREE_API_VERSION', '2023-08-01').strip()
 CASHFREE_API_BASE = 'https://api.cashfree.com/pg' if CASHFREE_ENV == 'production' else 'https://sandbox.cashfree.com/pg'
+CASHFREE_WEBHOOK_SECRET = (os.getenv('CASHFREE_WEBHOOK_SECRET') or CASHFREE_SECRET_KEY).strip()
+CASHFREE_WEBHOOK_REQUIRE_SIGNATURE = _is_truthy(
+    os.getenv('CASHFREE_WEBHOOK_REQUIRE_SIGNATURE', '1' if IS_PRODUCTION else '0')
+)
+CASHFREE_TERMINAL_ORDER_STATUSES = {'PAID', 'EXPIRED', 'TERMINATED', 'CANCELLED', 'FAILED'}
 
 
 def is_cashfree_ready():
@@ -760,6 +774,148 @@ def _cashfree_headers():
         'x-api-version': CASHFREE_API_VERSION,
         'Content-Type': 'application/json'
     }
+
+
+def _cashfree_fetch_order(order_id):
+    if not order_id:
+        return False, {}, 'Missing order id.'
+    try:
+        resp = requests.get(
+            f"{CASHFREE_API_BASE}/orders/{order_id}",
+            headers=_cashfree_headers(),
+            timeout=25
+        )
+    except Exception as ex:
+        return False, {}, f'Cashfree status check failed: {ex}'
+
+    try:
+        payload = resp.json() if resp.content else {}
+    except Exception:
+        payload = {}
+
+    if resp.status_code >= 400:
+        return False, payload, payload.get('message') or 'Unable to verify payment status'
+    return True, payload, ''
+
+
+def _extract_cashfree_order_id(payload):
+    payload = payload or {}
+    data = payload.get('data') or {}
+    order_obj = data.get('order') or {}
+    order_payload = payload.get('order') or {}
+    return (
+        payload.get('order_id')
+        or payload.get('cf_order_id')
+        or order_obj.get('order_id')
+        or order_payload.get('order_id')
+        or data.get('order_id')
+        or ''
+    ).strip()
+
+
+def _normalize_cashfree_signature(value):
+    value = (value or '').strip()
+    if not value:
+        return ''
+    if '=' in value:
+        value = value.split('=', 1)[1]
+    return value.strip().lower()
+
+
+def _verify_cashfree_webhook_signature(raw_body, signature, timestamp=None):
+    if not CASHFREE_WEBHOOK_SECRET:
+        return not CASHFREE_WEBHOOK_REQUIRE_SIGNATURE
+
+    provided = _normalize_cashfree_signature(signature)
+    if not provided:
+        return not CASHFREE_WEBHOOK_REQUIRE_SIGNATURE
+
+    body_text = raw_body.decode('utf-8', errors='ignore')
+    raw_body_bytes = raw_body if isinstance(raw_body, (bytes, bytearray)) else body_text.encode('utf-8')
+
+    candidate_digests = set()
+    candidate_digests.add(hmac.new(CASHFREE_WEBHOOK_SECRET.encode('utf-8'), raw_body_bytes, hashlib.sha256).hexdigest().lower())
+    candidate_digests.add(hmac.new(CASHFREE_WEBHOOK_SECRET.encode('utf-8'), body_text.encode('utf-8'), hashlib.sha256).hexdigest().lower())
+    if timestamp:
+        ts_body = f"{timestamp}.{body_text}".encode('utf-8')
+        candidate_digests.add(hmac.new(CASHFREE_WEBHOOK_SECRET.encode('utf-8'), ts_body, hashlib.sha256).hexdigest().lower())
+
+    for digest in candidate_digests:
+        if hmac.compare_digest(provided, digest):
+            return True
+    return False
+
+
+def _cashfree_order_to_api_response(order_id, order_data, fallback_amount_paise=10000, fallback_return_url=''):
+    amount_paise = fallback_amount_paise
+    try:
+        amount_paise = int(round(float(order_data.get('order_amount')) * 100))
+    except Exception:
+        pass
+    return_url = (order_data.get('order_meta') or {}).get('return_url') or fallback_return_url
+    return {
+        'success': True,
+        'gateway': 'cashfree',
+        'environment': CASHFREE_ENV,
+        'order_id': order_id,
+        'cashfree_order_id': order_id,
+        'amount': amount_paise,
+        'currency': str(order_data.get('order_currency') or 'INR'),
+        'payment_session_id': order_data.get('payment_session_id'),
+        'payment_link': order_data.get('payment_link') or (order_data.get('order_meta') or {}).get('payment_link'),
+        'return_url': return_url
+    }
+
+
+def _idempotency_lookup_order(idempotency_key):
+    if not idempotency_key:
+        return None
+    conn = sqlite3.connect(DB_NAME)
+    cur = conn.cursor()
+    try:
+        cur.execute(
+            'SELECT order_id FROM cashfree_order_idempotency WHERE idempotency_key = ?',
+            (idempotency_key,)
+        )
+        row = cur.fetchone()
+        return (row[0] or '').strip() if row and row[0] else None
+    except Exception:
+        return None
+    finally:
+        conn.close()
+
+
+def _idempotency_store_order(idempotency_key, order_id, reg_id=None, event_id=None, amount=None):
+    if not idempotency_key or not order_id:
+        return
+    conn = sqlite3.connect(DB_NAME)
+    cur = conn.cursor()
+    try:
+        cur.execute(
+            '''
+            INSERT INTO cashfree_order_idempotency (idempotency_key, registration_id, event_id, order_id, amount, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT(idempotency_key)
+            DO UPDATE SET registration_id = EXCLUDED.registration_id,
+                          event_id = EXCLUDED.event_id,
+                          order_id = EXCLUDED.order_id,
+                          amount = EXCLUDED.amount,
+                          updated_at = EXCLUDED.updated_at
+            ''',
+            (
+                idempotency_key,
+                int(reg_id) if reg_id is not None else None,
+                int(event_id) if event_id is not None else None,
+                order_id,
+                int(amount) if amount is not None else None,
+                datetime.utcnow().isoformat()
+            )
+        )
+        conn.commit()
+    except Exception:
+        conn.rollback()
+    finally:
+        conn.close()
 
 google_creds_file = os.getenv('GOOGLE_OAUTH_CREDENTIALS_FILE')
 # ---------- GOOGLE OAUTH CONFIG ----------
@@ -1119,6 +1275,19 @@ def init_db():
         """)
 
         cur.execute("""
+        CREATE TABLE IF NOT EXISTS cashfree_order_idempotency (
+            id INTEGER GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+            idempotency_key TEXT NOT NULL UNIQUE,
+            registration_id INTEGER,
+            event_id INTEGER,
+            order_id TEXT NOT NULL,
+            amount INTEGER,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+        """)
+
+        cur.execute("""
         CREATE TABLE IF NOT EXISTS team_members (
             id INTEGER GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
             registration_id INTEGER,
@@ -1339,6 +1508,19 @@ def init_db():
         status TEXT DEFAULT 'pending',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (username) REFERENCES users (username)
+    )
+    """)
+
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS cashfree_order_idempotency (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        idempotency_key TEXT NOT NULL UNIQUE,
+        registration_id INTEGER,
+        event_id INTEGER,
+        order_id TEXT NOT NULL,
+        amount INTEGER,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
     """)
 
@@ -2372,19 +2554,67 @@ def _verify_cashfree_and_finalize(order_id, reg_id=None):
     return _finalize_registration_payment(order_id=order_id, payment_id=payment_id, reg_id=reg_id)
 
 @app.route('/create_payment_order', methods=['POST'])
+@app.route('/api/cashfree/create-order', methods=['POST'])
 def create_payment_order():
     """Create Cashfree order/session for payment."""
     try:
         if not is_cashfree_ready():
             return jsonify({'success': False, 'error': 'Cashfree is not configured. Set CASHFREE_APP_ID and CASHFREE_SECRET_KEY.'}), 503
 
-        data = request.json or {}
+        data = request.get_json(silent=True) or {}
         reg_id = data.get('registration_id')
         event_id = data.get('event_id')
+        idempotency_key = (
+            request.headers.get('X-Idempotency-Key')
+            or data.get('idempotency_key')
+            or ''
+        ).strip()
+        if reg_id and not idempotency_key:
+            idempotency_key = f"registration:{reg_id}"
+
+        try:
+            reg_id = int(reg_id) if reg_id is not None and str(reg_id).strip() != '' else None
+        except Exception:
+            return jsonify({'success': False, 'error': 'Invalid registration_id'}), 400
+
+        try:
+            event_id = int(event_id) if event_id is not None and str(event_id).strip() != '' else None
+        except Exception:
+            return jsonify({'success': False, 'error': 'Invalid event_id'}), 400
+
         amount = 10000  # default ₹100 in paise
         customer_email = (data.get('email') or '').strip()
         customer_phone = ''
         customer_name = (session.get('user') or 'Player').strip()
+
+        if idempotency_key:
+            old_order_id = _idempotency_lookup_order(idempotency_key)
+            if old_order_id:
+                ok_old, old_order, _ = _cashfree_fetch_order(old_order_id)
+                if ok_old:
+                    old_status = str(old_order.get('order_status') or '').upper()
+                    if old_status == 'PAID':
+                        ok, payload, code = _finalize_registration_payment(
+                            order_id=old_order_id,
+                            payment_id=f"CASHFREE-{old_order_id}",
+                            reg_id=reg_id
+                        )
+                        return jsonify({
+                            **payload,
+                            'order_id': old_order_id,
+                            'cashfree_order_id': old_order_id,
+                            'idempotent_reused': True,
+                            'idempotency_key': idempotency_key
+                        }), code
+                    if old_status not in CASHFREE_TERMINAL_ORDER_STATUSES:
+                        reused = _cashfree_order_to_api_response(
+                            order_id=old_order_id,
+                            order_data=old_order,
+                            fallback_amount_paise=amount
+                        )
+                        reused['idempotent_reused'] = True
+                        reused['idempotency_key'] = idempotency_key
+                        return jsonify(reused), 200
 
         # Helper to parse stored date strings for open/close checks
         def parse_dt(val):
@@ -2406,11 +2636,14 @@ def create_payment_order():
             try:
                 conn = sqlite3.connect(DB_NAME)
                 cur = conn.cursor()
-                cur.execute('SELECT event_id, amount, email, phone, username FROM registrations WHERE id = ?', (int(reg_id),))
+                cur.execute(
+                    'SELECT event_id, amount, email, phone, username, order_id, payment_id, status FROM registrations WHERE id = ?',
+                    (int(reg_id),)
+                )
                 rrow = cur.fetchone()
                 conn.close()
                 if rrow:
-                    reg_event_id = rrow[0]
+                    reg_event_id = int(rrow[0]) if rrow[0] is not None else None
                     # amount in paise stored on registration; fall back to default if missing/zero
                     try:
                         if rrow[1] and int(rrow[1]) > 0:
@@ -2420,6 +2653,47 @@ def create_payment_order():
                     customer_email = customer_email or (rrow[2] or '')
                     customer_phone = (rrow[3] or '').strip()
                     customer_name = (rrow[4] or customer_name).strip()
+
+                    existing_reg_order_id = (rrow[5] or '').strip()
+                    payment_id = (rrow[6] or '').strip()
+                    reg_status = str(rrow[7] or '').lower()
+                    if reg_status == 'completed' or payment_id:
+                        return jsonify({
+                            'success': True,
+                            'already_paid': True,
+                            'payment_id': (payment_id or (f"CASHFREE-{existing_reg_order_id}" if existing_reg_order_id else '')),
+                            'order_id': existing_reg_order_id,
+                            'cashfree_order_id': existing_reg_order_id
+                        }), 200
+
+                    if existing_reg_order_id:
+                        ok_existing, existing_payload, _ = _cashfree_fetch_order(existing_reg_order_id)
+                        if ok_existing:
+                            existing_status = str(existing_payload.get('order_status') or '').upper()
+                            if existing_status == 'PAID':
+                                ok, payload, code = _finalize_registration_payment(
+                                    order_id=existing_reg_order_id,
+                                    payment_id=f"CASHFREE-{existing_reg_order_id}",
+                                    reg_id=reg_id
+                                )
+                                return jsonify({
+                                    **payload,
+                                    'order_id': existing_reg_order_id,
+                                    'cashfree_order_id': existing_reg_order_id,
+                                    'idempotent_reused': True,
+                                    'idempotency_key': idempotency_key or f"registration:{reg_id}"
+                                }), code
+                            if existing_status not in CASHFREE_TERMINAL_ORDER_STATUSES:
+                                reused = _cashfree_order_to_api_response(
+                                    order_id=existing_reg_order_id,
+                                    order_data=existing_payload,
+                                    fallback_amount_paise=amount
+                                )
+                                reused['idempotent_reused'] = True
+                                reused['idempotency_key'] = idempotency_key or f"registration:{reg_id}"
+                                if idempotency_key:
+                                    _idempotency_store_order(idempotency_key, existing_reg_order_id, reg_id=reg_id, event_id=event_id, amount=amount)
+                                return jsonify(reused), 200
             except Exception as e:
                 return jsonify({'success': False, 'error': f'Could not load registration: {e}'}), 400
 
@@ -2437,7 +2711,7 @@ def create_payment_order():
                 erow = cur.fetchone()
                 if not erow:
                     conn.close()
-                    return jsonify({'success': False, 'error': 'Event not found'})
+                    return jsonify({'success': False, 'error': 'Event not found'}), 404
 
                 slots_left, is_open, entry_fee, start_time, end_time = erow[0], erow[1], erow[2], erow[3], erow[4]
                 now = datetime.utcnow()
@@ -2448,7 +2722,7 @@ def create_payment_order():
                 if not reg_id:
                     if st and now < st:
                         conn.close()
-                        return jsonify({'success': False, 'error': f'Registration not open yet (opens {st})'})
+                        return jsonify({'success': False, 'error': f'Registration not open yet (opens {st})'}), 400
                     if et and now >= et:
                         try:
                             cur.execute('UPDATE events SET is_open = 0 WHERE id = ?', (int(event_id),))
@@ -2456,10 +2730,10 @@ def create_payment_order():
                         except Exception:
                             pass
                         conn.close()
-                        return jsonify({'success': False, 'error': 'Event is closed'})
+                        return jsonify({'success': False, 'error': 'Event is closed'}), 400
                     if is_open is not None and not bool(is_open):
                         conn.close()
-                        return jsonify({'success': False, 'error': 'Event is closed for registrations'})
+                        return jsonify({'success': False, 'error': 'Event is closed for registrations'}), 400
 
                 # Always block if slots are exhausted
                 if slots_left is not None and slots_left <= 0:
@@ -2469,7 +2743,7 @@ def create_payment_order():
                     except Exception:
                         pass
                     conn.close()
-                    return jsonify({'success': False, 'error': 'Event is full'})
+                    return jsonify({'success': False, 'error': 'Event is full'}), 400
 
                 # amount in rupees -> paise
                 try:
@@ -2479,7 +2753,7 @@ def create_payment_order():
                     pass
                 conn.close()
             except Exception as e:
-                return jsonify({'success': False, 'error': str(e)})
+                return jsonify({'success': False, 'error': str(e)}), 400
 
         # Cashfree requires amount in INR rupees.
         if amount is None or amount <= 0:
@@ -2494,9 +2768,9 @@ def create_payment_order():
             customer_phone = '9999999999'
 
         if reg_id:
-            cf_order_id = f"BXR{int(reg_id)}{int(datetime.utcnow().timestamp())}"
+            cf_order_id = f"BXR{int(reg_id)}{int(datetime.utcnow().timestamp())}{secrets.randbelow(1000000):06d}"
         else:
-            cf_order_id = f"BX{int(datetime.utcnow().timestamp())}{secrets.randbelow(1000):03d}"
+            cf_order_id = f"BX{int(datetime.utcnow().timestamp())}{secrets.randbelow(1000000):06d}"
 
         callback_url = url_for('cashfree_payment_callback', _external=True)
         registration_part = str(reg_id) if reg_id else ''
@@ -2542,20 +2816,138 @@ def create_payment_order():
             except Exception:
                 pass
 
-        return jsonify({
-            'success': True,
-            'gateway': 'cashfree',
-            'environment': CASHFREE_ENV,
-            'order_id': cf_order_id,
-            'amount': amount,
-            'currency': 'INR',
-            'payment_session_id': order.get('payment_session_id'),
-            'payment_link': order.get('payment_link') or (order.get('order_meta') or {}).get('payment_link'),
-            'return_url': return_url
-        })
+        if idempotency_key:
+            _idempotency_store_order(idempotency_key, cf_order_id, reg_id=reg_id, event_id=event_id, amount=amount)
+
+        response_payload = _cashfree_order_to_api_response(
+            order_id=cf_order_id,
+            order_data=order,
+            fallback_amount_paise=amount,
+            fallback_return_url=return_url
+        )
+        response_payload['idempotency_key'] = idempotency_key or None
+        return jsonify(response_payload)
 
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+def _finalize_wallet_deposit_by_order(order_id, payment_id=None):
+    payment_id = payment_id or f"CASHFREE-{order_id}"
+    conn = sqlite3.connect(DB_NAME)
+    cur = conn.cursor()
+    try:
+        cur.execute('SELECT id, username, amount, status FROM wallet_deposit_orders WHERE order_id = ?', (order_id,))
+        row = cur.fetchone()
+        if not row:
+            conn.close()
+            return False, {'success': False, 'error': 'Wallet deposit order not found.'}, 404
+
+        deposit_id, username, amount_paise, status = row[0], row[1], int(row[2] or 0), str(row[3] or '').lower()
+        if status == 'completed':
+            conn.close()
+            return True, {
+                'success': True,
+                'message': 'Wallet deposit already credited.',
+                'payment_id': payment_id,
+                'amount': amount_paise
+            }, 200
+
+        now_text = datetime.utcnow().isoformat()
+        cur.execute(
+            'UPDATE wallet_deposit_orders SET status = ?, payment_id = ?, updated_at = ? WHERE id = ? AND status <> ?',
+            ('completed', payment_id, now_text, deposit_id, 'completed')
+        )
+        if getattr(cur, 'rowcount', 1) == 0:
+            conn.commit()
+            conn.close()
+            return True, {
+                'success': True,
+                'message': 'Wallet deposit already processed.',
+                'payment_id': payment_id,
+                'amount': amount_paise
+            }, 200
+
+        cur.execute('UPDATE users SET wallet_balance = COALESCE(wallet_balance, 0) + ? WHERE username = ?', (amount_paise, username))
+        cur.execute(
+            'INSERT INTO wallet_transactions (username, txn_type, amount, status, note) VALUES (?, ?, ?, ?, ?)',
+            (username, 'deposit', amount_paise, 'completed', f'Cashfree top-up {order_id}')
+        )
+        conn.commit()
+        conn.close()
+        return True, {
+            'success': True,
+            'message': 'Wallet credited successfully.',
+            'payment_id': payment_id,
+            'amount': amount_paise
+        }, 200
+    except Exception:
+        conn.rollback()
+        conn.close()
+        return False, {'success': False, 'error': 'Could not credit wallet for this payment.'}, 500
+
+
+@app.route('/api/cashfree/webhook', methods=['POST'])
+def cashfree_webhook():
+    raw_body = request.get_data(cache=True)
+    signature = (
+        request.headers.get('x-webhook-signature')
+        or request.headers.get('x-cashfree-signature')
+        or request.headers.get('x-signature')
+        or ''
+    )
+    timestamp = request.headers.get('x-webhook-timestamp') or request.headers.get('x-timestamp')
+
+    if not _verify_cashfree_webhook_signature(raw_body=raw_body, signature=signature, timestamp=timestamp):
+        return jsonify({'success': False, 'error': 'Invalid webhook signature.'}), 401
+
+    payload = request.get_json(silent=True) or {}
+    order_id = _extract_cashfree_order_id(payload)
+    if not order_id:
+        return jsonify({'success': False, 'error': 'Missing Cashfree order id in webhook payload.'}), 400
+
+    ok, order_payload, err = _cashfree_fetch_order(order_id)
+    if not ok:
+        return jsonify({'success': False, 'error': err or 'Unable to verify Cashfree order status.'}), 502
+
+    order_status = str(order_payload.get('order_status') or '').upper()
+    if order_status != 'PAID':
+        return jsonify({
+            'success': True,
+            'received': True,
+            'order_id': order_id,
+            'order_status': order_status,
+            'ignored': True
+        }), 200
+
+    if order_id.startswith('WLT'):
+        ok_done, finalize_payload, code = _finalize_wallet_deposit_by_order(
+            order_id=order_id,
+            payment_id=f"CASHFREE-{order_id}"
+        )
+    else:
+        ok_done, finalize_payload, code = _finalize_registration_payment(
+            order_id=order_id,
+            payment_id=f"CASHFREE-{order_id}",
+            reg_id=None
+        )
+
+    if not ok_done and code == 404:
+        return jsonify({
+            'success': True,
+            'received': True,
+            'order_id': order_id,
+            'ignored': True,
+            'reason': finalize_payload.get('error')
+        }), 200
+
+    return jsonify({
+        'success': ok_done,
+        'received': True,
+        'order_id': order_id,
+        'payment_id': f"CASHFREE-{order_id}",
+        'result': finalize_payload
+    }), code
 
 @app.route('/verify_payment', methods=['POST'])
 def verify_payment():

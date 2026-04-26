@@ -31,6 +31,8 @@ This project is now configured for Render deployment and GitHub hosting.
 7. Set missing secrets in Render dashboard:
    - `CASHFREE_APP_ID`
    - `CASHFREE_SECRET_KEY`
+  - `CASHFREE_WEBHOOK_SECRET`
+  - `CASHFREE_WEBHOOK_REQUIRE_SIGNATURE=1`
    - `GOOGLE_CLIENT_ID`
    - `GOOGLE_CLIENT_SECRET`
    - `GOOGLE_REDIRECT_URI` (use your Render URL callback endpoint)
@@ -72,3 +74,65 @@ python app.py
 ```
 
 App runs on `http://127.0.0.1:5000` by default.
+
+## Cashfree Order API (Frontend)
+
+Use this endpoint to create a Cashfree order and get a `payment_session_id`:
+
+- Method: `POST`
+- Path: `/api/cashfree/create-order`
+- Content-Type: `application/json`
+- Optional Header: `X-Idempotency-Key: <unique-key-per-checkout>`
+
+Example request:
+
+```json
+{
+  "registration_id": 123,
+  "event_id": 7,
+  "mode": "BR Solo",
+  "email": "player@example.com"
+}
+```
+
+Example success response:
+
+```json
+{
+  "success": true,
+  "gateway": "cashfree",
+  "environment": "sandbox",
+  "order_id": "BXR1231714200000",
+  "cashfree_order_id": "BXR1231714200000",
+  "amount": 10000,
+  "currency": "INR",
+  "payment_session_id": "session_xxx",
+  "payment_link": null,
+  "return_url": "http://localhost/payment/cashfree/callback?registration_id=123&order_id={order_id}"
+}
+```
+
+Note: `/create_payment_order` still works for backward compatibility, but new integrations should use `/api/cashfree/create-order`.
+
+### Idempotency and Retry Behavior
+
+- If the same `X-Idempotency-Key` is retried, the API returns the same active Cashfree `order_id` instead of creating a duplicate order.
+- For registration retries, the backend also reuses an existing active `order_id` linked to that registration.
+
+## Cashfree Webhook (Server-to-Server)
+
+Use this endpoint for asynchronous payment confirmation from Cashfree:
+
+- Method: `POST`
+- Path: `/api/cashfree/webhook`
+
+Behavior:
+
+- Verifies webhook signature when enabled.
+- Re-checks order status directly from Cashfree before finalizing.
+- Finalization is idempotent, so repeated webhook deliveries do not double-credit wallet or double-complete registrations.
+
+Recommended env vars:
+
+- `CASHFREE_WEBHOOK_SECRET` (if not set, app falls back to `CASHFREE_SECRET_KEY`)
+- `CASHFREE_WEBHOOK_REQUIRE_SIGNATURE=1` (recommended for production)

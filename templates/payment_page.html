@@ -131,7 +131,7 @@ const cashfreeMode = {{ cashfree_env|default('sandbox')|tojson|safe }};
 async function createOrderAndOpen(reg_id){
   try{
     // Create Cashfree order/session for this registration.
-    const res = await fetch('/create_payment_order', {
+    const res = await fetch('/api/cashfree/create-order', {
       method: 'POST', headers: {'Content-Type':'application/json'},
       body: JSON.stringify({ registration_id: reg_id, event_id: reg.event_id, mode: reg.mode, email: reg.email })
     });

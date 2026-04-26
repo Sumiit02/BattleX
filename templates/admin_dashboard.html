@@ -19,6 +19,20 @@
     <div class="flex items-center gap-4">
       <div class="relative">
         <button id="notifBtn" class="px-3 py-2 rounded-lg bg-white border border-slate-200 shadow-sm text-slate-800">Notifications ({{ notifications|length }})</button>
+        <div id="notifPanel" class="hidden absolute right-0 mt-2 w-[380px] max-w-[90vw] bg-white border border-slate-200 shadow-2xl rounded-2xl z-50 overflow-hidden">
+          <div class="flex items-center justify-between px-4 py-3 border-b border-slate-100">
+            <div>
+              <div class="font-semibold text-slate-900">Admin Notifications</div>
+              <div class="text-xs text-slate-500">Payment, refund, and withdrawal updates</div>
+            </div>
+            <button id="closeNotifPanel" class="text-slate-500 hover:text-slate-900">✕</button>
+          </div>
+          <div id="notifList" class="max-h-96 overflow-y-auto divide-y divide-slate-100"></div>
+          <div class="px-4 py-3 border-t border-slate-100 bg-slate-50 text-sm flex items-center justify-between">
+            <a href="{{ url_for('admin_wallet') }}" class="text-orange-600 font-semibold hover:underline">Open Wallet Withdrawals</a>
+            <span id="notifSummary" class="text-slate-500"></span>
+          </div>
+        </div>
       </div>
       <div class="relative">
         <button class="px-3 py-2 rounded-lg bg-white border border-slate-200 shadow-sm text-slate-800">{{ session.get('user') }}</button>
@@ -106,6 +120,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script>
       const registrations = {{ registrations|tojson }};
+      const initialNotifications = {{ notifications|tojson }};
       const modeCounts = {};
       registrations.forEach(r => { const mode = r[5]; modeCounts[mode] = (modeCounts[mode] || 0) + 1; });
       const modeLabels = Object.keys(modeCounts);
@@ -128,9 +143,81 @@
         const slotsEl = document.getElementById('slotsCount');
         if(slotsEl) slotsEl.innerText = j.events.reduce((s,e)=> s + (e.slots_left||0), 0);
         document.getElementById('notifBtn').innerText = `Notifications (${j.unread_notifications})`;
+        renderNotifications(j.notifications || []);
       }
     }catch(e){ console.log('Overview fetch error', e); }
   }
+
+  function renderNotifications(items){
+    const panel = document.getElementById('notifList');
+    const summary = document.getElementById('notifSummary');
+    if(!panel) return;
+    panel.innerHTML = '';
+    if(!items.length){
+      panel.innerHTML = '<div class="px-4 py-6 text-sm text-slate-500">No notifications yet.</div>';
+      if(summary) summary.innerText = '0 unread';
+      return;
+    }
+    let unread = 0;
+    items.forEach((n) => {
+      const item = Array.isArray(n) ? {
+        id: n[0],
+        type: n[1],
+        message: n[2],
+        metadata: n[3],
+        is_read: !!n[4],
+        created_at: n[5]
+      } : n;
+      if(!item.is_read) unread += 1;
+      const row = document.createElement('div');
+      row.className = `px-4 py-3 text-sm ${item.is_read ? 'bg-white' : 'bg-orange-50'}`;
+      row.innerHTML = `
+        <div class="flex items-start justify-between gap-3">
+          <div>
+            <div class="font-semibold text-slate-900">${escapeHtml(item.message || '')}</div>
+            <div class="text-xs text-slate-500 mt-1">${escapeHtml(item.type || '')} • ${escapeHtml(item.created_at || '')}</div>
+          </div>
+          <button data-notification-id="${item.id}" class="mark-notif-read text-xs text-orange-600 hover:underline ${item.is_read ? 'hidden' : ''}">Mark read</button>
+        </div>`;
+      panel.appendChild(row);
+    });
+    if(summary) summary.innerText = `${unread} unread`;
+    document.querySelectorAll('.mark-notif-read').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        const nid = e.target.dataset.notificationId;
+        try{
+          await fetch(`/admin/mark_notification_read/${nid}`, { method: 'POST' });
+          fetchOverview();
+        }catch(err){ console.log(err); }
+      });
+    });
+  }
+
+  function escapeHtml(value){
+    return String(value || '')
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#39;');
+  }
+
+  const notifBtn = document.getElementById('notifBtn');
+  const notifPanel = document.getElementById('notifPanel');
+  const closeNotifPanel = document.getElementById('closeNotifPanel');
+  if(notifBtn && notifPanel){
+    notifBtn.addEventListener('click', () => notifPanel.classList.toggle('hidden'));
+  }
+  if(closeNotifPanel && notifPanel){
+    closeNotifPanel.addEventListener('click', () => notifPanel.classList.add('hidden'));
+  }
+  document.addEventListener('click', (e) => {
+    if(!notifPanel || notifPanel.classList.contains('hidden')) return;
+    if(notifBtn.contains(e.target) || notifPanel.contains(e.target)) return;
+    notifPanel.classList.add('hidden');
+  });
+
+  renderNotifications(initialNotifications);
   fetchOverview();
   setInterval(fetchOverview, 5000);
   </script>

@@ -3588,6 +3588,66 @@ def admin_dashboard():
     return render_template('admin_dashboard.html', users=users, registrations=registrations, total_revenue=total_revenue, notifications=notifications, signups_today=signups_today, match_counts=dashboard_match_counts)
 
 
+@app.route('/admin/overview_status')
+def admin_overview_status():
+    if 'user' not in session or session.get('role') != 'admin':
+        return jsonify({'success': False, 'error': 'Admins only'}), 403
+
+    conn = sqlite3.connect(DB_NAME)
+    cur = conn.cursor()
+    try:
+        cur.execute('SELECT COUNT(*) FROM notifications WHERE COALESCE(is_read, 0) = 0')
+        unread_notifications = int(cur.fetchone()[0] or 0)
+
+        cur.execute('SELECT id, type, message, metadata, is_read, created_at FROM notifications ORDER BY created_at DESC LIMIT 20')
+        rows = cur.fetchall()
+        notifications = [
+            {
+                'id': r[0],
+                'type': r[1] or '',
+                'message': r[2] or '',
+                'metadata': r[3] or '',
+                'is_read': bool(r[4]),
+                'created_at': r[5] or ''
+            }
+            for r in rows
+        ]
+
+        cur.execute('SELECT SUM(COALESCE(slots_left, 0)) FROM events')
+        slots_total = int(cur.fetchone()[0] or 0)
+
+        cur.execute("SELECT COUNT(*) FROM wallet_withdrawal_requests WHERE COALESCE(status, 'pending') = 'pending'")
+        pending_withdrawals = int(cur.fetchone()[0] or 0)
+
+        cur.execute('SELECT COUNT(*) FROM registrations WHERE COALESCE(status, \"pending\") = \"pending\"')
+        pending_payments = int(cur.fetchone()[0] or 0)
+
+        cur.execute('SELECT id, title, slots_left, is_open FROM events ORDER BY id')
+        events = [
+            {
+                'id': r[0],
+                'title': r[1] or '',
+                'slots_left': int(r[2] or 0),
+                'is_open': bool(r[3])
+            }
+            for r in cur.fetchall()
+        ]
+    except Exception as ex:
+        conn.close()
+        return jsonify({'success': False, 'error': str(ex)}), 500
+
+    conn.close()
+    return jsonify({
+        'success': True,
+        'unread_notifications': unread_notifications,
+        'notifications': notifications,
+        'events': events,
+        'slots_total': slots_total,
+        'pending_withdrawals': pending_withdrawals,
+        'pending_payments': pending_payments,
+    })
+
+
 @app.route('/admin/events')
 def admin_events():
     if 'user' not in session or session.get('role') != 'admin':

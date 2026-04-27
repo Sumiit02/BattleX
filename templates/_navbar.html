@@ -179,6 +179,48 @@
         .menu-divider { height:1px; background:#e2e8f0; margin:.45rem 0; border-radius:1px; }
         .avatar { width:36px; height:36px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-weight:700; color:#0f172a; background:linear-gradient(90deg,#fde68a,#fdba74); }
         .small { font-size:.85rem; color: #475569; }
+        .preview-banner {
+            width: 100%;
+            box-sizing: border-box;
+            background: linear-gradient(90deg, #fff7ed, #ffedd5);
+            border-bottom: 1px solid #fdba74;
+            color: #9a3412;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: .75rem;
+            padding: .5rem 1rem;
+            font-size: .82rem;
+            font-weight: 600;
+            position: relative;
+            z-index: 950;
+        }
+        .preview-banner__actions {
+            display: flex;
+            align-items: center;
+            gap: .5rem;
+            flex-wrap: wrap;
+        }
+        .preview-banner__link {
+            text-decoration: none;
+            color: #7c2d12;
+            border: 1px solid #fdba74;
+            background: #ffffff;
+            border-radius: 999px;
+            padding: .2rem .55rem;
+            font-size: .74rem;
+            font-weight: 700;
+        }
+        .preview-banner__btn {
+            border: 1px solid #c2410c;
+            background: #c2410c;
+            color: #ffffff;
+            border-radius: 999px;
+            padding: .2rem .55rem;
+            font-size: .74rem;
+            font-weight: 700;
+            cursor: pointer;
+        }
         @media (max-width:1024px){
             .nav-links { display:none; }
             .nav-cta { display:none; }
@@ -242,6 +284,18 @@
 	</div>
     <!-- Spacer -->
     <div id="navSpacer" style="height:64px; width:100%;"></div>
+
+    {% if session.get('role') == 'admin' and session.get('admin_preview_user') and not request.path.startswith('/admin') %}
+    <div class="preview-banner" role="status" aria-live="polite">
+        <div>Previewing as {{ session.get('admin_preview_user') }} (admin preview mode)</div>
+        <div class="preview-banner__actions">
+            <a class="preview-banner__link" href="{{ url_for('admin_player_portal') }}">Change Player</a>
+            <form method="post" action="{{ url_for('admin_player_portal_clear') }}" style="margin:0;">
+                <button type="submit" class="preview-banner__btn">Exit Preview</button>
+            </form>
+        </div>
+    </div>
+    {% endif %}
 
     <!-- Floating menu -->
     <div id="navBackdrop" class="menu-backdrop" aria-hidden="true">

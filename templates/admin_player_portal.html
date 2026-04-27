@@ -1,0 +1,70 @@
+{% extends 'admin_base.html' %}
+
+{% block title %}Admin • Player Portal Preview{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto space-y-5">
+  <div class="flex items-center justify-between gap-4">
+    <div>
+      <h1 class="text-2xl font-bold text-slate-900">Player Portal Preview</h1>
+      <p class="text-sm text-slate-500">Access player-side pages directly after admin login. No extra credentials needed.</p>
+    </div>
+    <div class="flex items-center gap-2">
+      {% if preview_user %}
+        <span class="px-3 py-1.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm font-semibold">Previewing: {{ preview_user }}</span>
+        <form method="post" action="{{ url_for('admin_player_portal_clear') }}">
+          <button type="submit" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-900 text-white text-sm font-semibold">Stop Preview</button>
+        </form>
+      {% else %}
+        <span class="px-3 py-1.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-700 text-sm font-semibold">Preview inactive</span>
+      {% endif %}
+    </div>
+  </div>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div class="space-y-2">
+        {% for category, message in messages %}
+          <div class="px-3 py-2 rounded-lg text-sm font-medium {% if category == 'error' %}bg-red-50 text-red-700 border border-red-200{% elif category == 'success' %}bg-emerald-50 text-emerald-700 border border-emerald-200{% else %}bg-amber-50 text-amber-700 border border-amber-200{% endif %}">
+            {{ message }}
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+
+  <div class="bg-white border border-slate-200 rounded-2xl shadow-lg p-4">
+    <h2 class="text-lg font-semibold text-slate-900 mb-3">Choose Player Account</h2>
+    <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+      {% if players %}
+        {% for p in players %}
+          <form method="post" action="{{ url_for('admin_player_portal_activate') }}" class="p-3 rounded-xl border border-slate-200 bg-slate-50">
+            <input type="hidden" name="username" value="{{ p.username }}">
+            <div class="text-sm text-slate-900 font-semibold">{{ p.username }}</div>
+            <div class="text-xs text-slate-500 mt-1">{{ p.email or '-' }}</div>
+            <div class="text-xs text-slate-500">{{ p.game_id or '-' }} • {{ p.phone or '-' }}</div>
+            <button type="submit" class="mt-3 w-full px-3 py-2 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold">Preview As This Player</button>
+          </form>
+        {% endfor %}
+      {% else %}
+        <div class="text-sm text-slate-500">No player accounts found.</div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="bg-white border border-slate-200 rounded-2xl shadow-lg p-4">
+    <h2 class="text-lg font-semibold text-slate-900 mb-2">Preview Links</h2>
+    <p class="text-sm text-slate-500 mb-4">These links use the selected preview player and are read-only for money or registration actions.</p>
+    <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+      <a href="{{ url_for('home') }}" class="px-3 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-sm font-semibold text-slate-800">Home</a>
+      <a href="{{ url_for('freefire') }}" class="px-3 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-sm font-semibold text-slate-800">Free Fire</a>
+      <a href="{{ url_for('player_account') }}" class="px-3 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-sm font-semibold text-slate-800">My Account</a>
+      <a href="{{ url_for('wallet_page') }}" class="px-3 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-sm font-semibold text-slate-800">Wallet</a>
+      <a href="{{ url_for('player_history') }}" class="px-3 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-sm font-semibold text-slate-800">History</a>
+      <a href="{{ url_for('player_settings') }}" class="px-3 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-sm font-semibold text-slate-800">Settings</a>
+      <a href="{{ url_for('players') }}" class="px-3 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-sm font-semibold text-slate-800">Players</a>
+      <a href="{{ url_for('bgmi') }}" class="px-3 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-sm font-semibold text-slate-800">BGMI</a>
+    </div>
+  </div>
+</div>
+{% endblock %}

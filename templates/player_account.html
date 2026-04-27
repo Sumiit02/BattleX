@@ -63,9 +63,20 @@
               {% if wallet_transactions %}
                 {% for tx in wallet_transactions %}
                 <tr class="border-t border-slate-100">
-                  <td class="px-3 py-2 capitalize">{{ tx.txn_type }}</td>
+                  <td class="px-3 py-2">
+                    <span class="capitalize">{{ tx.txn_type }}</span>
+                    {% if tx.txn_type == 'match_fee' %}
+                      <span class="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-100 text-amber-700">Fee Locked</span>
+                    {% endif %}
+                  </td>
                   <td class="px-3 py-2 font-semibold">{{ tx.amount_label }}</td>
-                  <td class="px-3 py-2">{{ tx.status }}</td>
+                  <td class="px-3 py-2">
+                    {% if tx.txn_type == 'match_fee' %}
+                      <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-blue-100 text-blue-700">Consumed For Tournament</span>
+                    {% else %}
+                      {{ tx.status }}
+                    {% endif %}
+                  </td>
                   <td class="px-3 py-2">{{ tx.created_at }}</td>
                 </tr>
                 {% endfor %}

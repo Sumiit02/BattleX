@@ -95,5 +95,86 @@
       </table>
     </div>
   </div>
+
+  <div class="bg-white border border-slate-200 rounded-2xl shadow-lg overflow-hidden">
+    <div class="px-4 py-4 border-b border-slate-200">
+      <h2 class="text-xl font-bold text-slate-900">Prize Money Requests</h2>
+      <p class="text-sm text-slate-500">Approve match result prize requests mode-wise. Wallet is credited only after approval.</p>
+    </div>
+
+    <div class="p-4 space-y-4">
+      {% for mode_group in grouped_prize_requests %}
+        <section class="border border-slate-200 rounded-xl overflow-hidden">
+          <div class="px-3 py-2 bg-slate-100 flex items-center justify-between">
+            <h3 class="text-sm font-semibold text-slate-800">{{ mode_group.mode_label }}</h3>
+            <span class="text-xs text-slate-500">{{ mode_group.requests|length }} request(s)</span>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead class="bg-slate-50 text-slate-600">
+                <tr>
+                  <th class="text-left px-3 py-2">Request</th>
+                  <th class="text-left px-3 py-2">Player</th>
+                  <th class="text-left px-3 py-2">Amount</th>
+                  <th class="text-left px-3 py-2">Result Note</th>
+                  <th class="text-left px-3 py-2">Status</th>
+                  <th class="text-left px-3 py-2">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% if mode_group.requests %}
+                  {% for req in mode_group.requests %}
+                    <tr class="border-t border-slate-100 align-top">
+                      <td class="px-3 py-2 text-xs">
+                        <div class="font-semibold">#{{ req.id }}</div>
+                        <div class="text-slate-500">Event #{{ req.event_id }} • Reg #{{ req.registration_id }}</div>
+                        <div class="text-slate-500">Created: {{ req.created_at }}</div>
+                      </td>
+                      <td class="px-3 py-2">{{ req.username }}</td>
+                      <td class="px-3 py-2 font-semibold">{{ req.amount_label }}</td>
+                      <td class="px-3 py-2 text-xs text-slate-600">{{ req.winner_note or '—' }}</td>
+                      <td class="px-3 py-2">
+                        <span class="px-2 py-1 rounded-full text-xs font-semibold {% if req.status == 'pending' %}bg-amber-100 text-amber-700{% elif req.status == 'approved' %}bg-emerald-100 text-emerald-700{% elif req.status == 'rejected' %}bg-red-100 text-red-700{% else %}bg-slate-100 text-slate-700{% endif %}">
+                          {{ req.status }}
+                        </span>
+                        {% if req.approved_by %}
+                          <div class="text-[11px] text-slate-500 mt-1">By {{ req.approved_by }}</div>
+                        {% endif %}
+                        {% if req.admin_note %}
+                          <div class="text-[11px] text-slate-500 mt-1">Note: {{ req.admin_note }}</div>
+                        {% endif %}
+                      </td>
+                      <td class="px-3 py-2">
+                        {% if req.status == 'pending' %}
+                          <div class="space-y-2 min-w-[220px]">
+                            <form method="post" action="{{ url_for('admin_wallet_prize_request_decision', request_id=req.id) }}" class="space-y-2">
+                              <input type="hidden" name="action" value="approve">
+                              <input type="text" name="admin_note" placeholder="Approval note (optional)" class="w-full rounded-lg border border-slate-300 px-2 py-1 text-xs">
+                              <button type="submit" class="w-full px-3 py-1.5 text-xs rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold">Approve + Credit Wallet</button>
+                            </form>
+                            <form method="post" action="{{ url_for('admin_wallet_prize_request_decision', request_id=req.id) }}" class="space-y-2">
+                              <input type="hidden" name="action" value="reject">
+                              <input type="text" name="admin_note" placeholder="Rejection reason" class="w-full rounded-lg border border-slate-300 px-2 py-1 text-xs">
+                              <button type="submit" class="w-full px-3 py-1.5 text-xs rounded-lg bg-red-600 hover:bg-red-700 text-white font-semibold">Reject</button>
+                            </form>
+                          </div>
+                        {% else %}
+                          <span class="text-xs text-slate-500">Processed</span>
+                        {% endif %}
+                      </td>
+                    </tr>
+                  {% endfor %}
+                {% else %}
+                  <tr>
+                    <td colspan="6" class="px-3 py-4 text-center text-slate-500">No prize requests for this mode.</td>
+                  </tr>
+                {% endif %}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      {% endfor %}
+    </div>
+  </div>
 </div>
 {% endblock %}

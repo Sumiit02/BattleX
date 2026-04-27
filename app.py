@@ -4583,23 +4583,6 @@ def admin_wallet():
            ORDER BY CASE WHEN status = 'pending' THEN 0 ELSE 1 END, id DESC'''
     )
     rows = cur.fetchall()
-
-    grouped_prize_requests = [
-        {'mode_key': mode_key, 'mode_label': mode_label, 'requests': []}
-        for mode_key, mode_label in FREEFIRE_PRIZE_MODES
-    ]
-    groups_by_key = {item['mode_key']: item for item in grouped_prize_requests}
-
-    try:
-        cur.execute(
-            '''SELECT id, event_id, registration_id, username, mode_key, mode_label, amount, status,
-                      winner_note, admin_note, requested_by, approved_by, created_at, approved_at
-               FROM prize_money_requests
-               ORDER BY CASE WHEN status = 'pending' THEN 0 ELSE 1 END, id DESC'''
-        )
-        prize_rows = cur.fetchall()
-    except Exception:
-        prize_rows = []
     conn.close()
 
     requests_list = []
@@ -4621,6 +4604,35 @@ def admin_wallet():
             'provider_status': r[12] or '',
             'created_at': r[13] or '-'
         })
+    return render_template('admin_wallet.html', requests_list=requests_list)
+
+
+@app.route('/admin/prize-requests')
+def admin_prize_requests():
+    if 'user' not in session or session.get('role') != 'admin':
+        flash('Admins only', 'error')
+        return redirect(url_for('admin_login'))
+
+    grouped_prize_requests = [
+        {'mode_key': mode_key, 'mode_label': mode_label, 'requests': []}
+        for mode_key, mode_label in FREEFIRE_PRIZE_MODES
+    ]
+    groups_by_key = {item['mode_key']: item for item in grouped_prize_requests}
+
+    conn = sqlite3.connect(DB_NAME)
+    cur = conn.cursor()
+    try:
+        cur.execute(
+            '''SELECT id, event_id, registration_id, username, mode_key, mode_label, amount, status,
+                      winner_note, admin_note, requested_by, approved_by, created_at, approved_at
+               FROM prize_money_requests
+               ORDER BY CASE WHEN status = 'pending' THEN 0 ELSE 1 END, id DESC'''
+        )
+        prize_rows = cur.fetchall()
+    except Exception:
+        prize_rows = []
+    finally:
+        conn.close()
 
     for row in prize_rows:
         mode_key = row[4] or ''
@@ -4647,11 +4659,7 @@ def admin_wallet():
             'approved_at': row[13] or ''
         })
 
-    return render_template(
-        'admin_wallet.html',
-        requests_list=requests_list,
-        grouped_prize_requests=grouped_prize_requests
-    )
+    return render_template('admin_prize_requests.html', grouped_prize_requests=grouped_prize_requests)
 
 
 @app.route('/admin/wallet/withdrawals/<int:request_id>/decision', methods=['POST'])
@@ -4782,7 +4790,7 @@ def admin_wallet_prize_request_decision(request_id):
     admin_note = (request.form.get('admin_note') or '').strip()
     if action not in ('approve', 'reject'):
         flash('Invalid action for prize request.', 'error')
-        return redirect(url_for('admin_wallet'))
+        return redirect(url_for('admin_prize_requests'))
 
     conn = sqlite3.connect(DB_NAME)
     cur = conn.cursor()
@@ -4797,14 +4805,14 @@ def admin_wallet_prize_request_decision(request_id):
         if not row:
             conn.close()
             flash('Prize request not found.', 'error')
-            return redirect(url_for('admin_wallet'))
+            return redirect(url_for('admin_prize_requests'))
 
         _, event_id, registration_id, username, amount_paise, status, mode_label = row
         status_text = str(status or '').lower()
         if status_text != 'pending':
             conn.close()
             flash('Prize request already processed.', 'info')
-            return redirect(url_for('admin_wallet'))
+            return redirect(url_for('admin_prize_requests'))
 
         if action == 'approve':
             cur.execute('UPDATE users SET wallet_balance = COALESCE(wallet_balance, 0) + ? WHERE username = ?', (amount_paise, username))
@@ -4857,7 +4865,7 @@ def admin_wallet_prize_request_decision(request_id):
     finally:
         conn.close()
 
-    return redirect(url_for('admin_wallet'))
+    return redirect(url_for('admin_prize_requests'))
 
 
 @app.route('/admin/mark_refund_request/<int:rid>', methods=['POST'])

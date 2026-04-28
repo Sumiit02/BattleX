@@ -39,7 +39,7 @@ services:
       - key: CASHFREE_WEBHOOK_REQUIRE_SIGNATURE
         value: "1"
       - key: CASHFREE_API_VERSION
-        value: 2023-08-01
+        value: 2025-01-01
       - key: CASHFREE_PAYOUTS_ENABLED
         value: "1"
       - key: CASHFREE_PAYOUTS_BASE_URL

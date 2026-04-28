@@ -823,7 +823,7 @@ def _is_valid_upi(value):
 CASHFREE_APP_ID = os.getenv('CASHFREE_APP_ID', '').strip()
 CASHFREE_SECRET_KEY = os.getenv('CASHFREE_SECRET_KEY', '').strip()
 CASHFREE_ENV = (os.getenv('CASHFREE_ENV', 'sandbox') or 'sandbox').strip().lower()
-CASHFREE_API_VERSION = os.getenv('CASHFREE_API_VERSION', '2023-08-01').strip()
+CASHFREE_API_VERSION = os.getenv('CASHFREE_API_VERSION', '2025-01-01').strip()
 CASHFREE_API_BASE = 'https://api.cashfree.com/pg' if CASHFREE_ENV == 'production' else 'https://sandbox.cashfree.com/pg'
 CASHFREE_WEBHOOK_SECRET = (os.getenv('CASHFREE_WEBHOOK_SECRET') or CASHFREE_SECRET_KEY).strip()
 CASHFREE_WEBHOOK_REQUIRE_SIGNATURE = _is_truthy(

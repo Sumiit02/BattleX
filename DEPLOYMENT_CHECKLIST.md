@@ -4,7 +4,7 @@
 
 **Status: ✅ Ready for Sandbox Testing**
 
-Your BATTLE-X application has been successfully upgraded to Cashfree API **v2025-01-01**. All code changes have been made and internal compatibility checks pass. The next phase requires **sandbox testing** to validate payment flows with actual API responses.
+Your BattleX application has been successfully upgraded to Cashfree API **v2025-01-01**. All code changes have been made and internal compatibility checks pass. The next phase requires **sandbox testing** to validate payment flows with actual API responses.
 
 ---
 

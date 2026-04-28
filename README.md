@@ -1,4 +1,4 @@
-# BATTLE-X Deployment Guide
+# BattleX Deployment Guide
 
 This project is now configured for Render deployment and GitHub hosting.
 
@@ -58,7 +58,7 @@ Run these commands in project root:
 ```bash
 git init
 git add .
-git commit -m "Prepare BATTLE-X for Render deployment"
+git commit -m "Prepare BattleX for Render deployment"
 git branch -M main
 git remote add origin https://github.com/<your-username>/<your-repo>.git
 git push -u origin main

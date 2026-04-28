@@ -909,7 +909,7 @@ def _wallet_prepare_payout_payload(request_row):
         'purpose': 'wallet_withdrawal',
         'beneficiary_name': holder_name,
         'reference_id': f'wallet_withdrawal_{request_id}',
-        'transfer_note': f'BATTLE-X wallet withdrawal #{request_id}',
+        'transfer_note': f'BattleX wallet withdrawal #{request_id}',
     }
     if method == 'bank':
         payload.update({
@@ -2583,7 +2583,7 @@ def wallet_deposit():
         'order_meta': {
             'return_url': return_url
         },
-        'order_note': 'BATTLE-X wallet top-up'
+        'order_note': 'BattleX wallet top-up'
     }
 
     try:
@@ -3261,7 +3261,7 @@ def create_payment_order():
             'order_meta': {
                 'return_url': return_url
             },
-            'order_note': f"BATTLE-X {data.get('mode') or 'registration'}"
+            'order_note': f"BattleX {data.get('mode') or 'registration'}"
         }
 
         resp = requests.post(
@@ -4983,7 +4983,7 @@ def admin_settings():
         flash('Admins only', 'error')
         return redirect(url_for('admin_login'))
     defaults = {
-        'site_name': 'BATTLE-X',
+        'site_name': 'BattleX',
         'default_entry_fee': 0,
         'google_client_id': '',
         'google_client_secret': '',

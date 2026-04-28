@@ -1,7 +1,7 @@
 # Cashfree API v2025-01-01 Integration Guide
 
 ## Overview
-Your BATTLE-X application uses Cashfree for payment processing and wallet payouts. This document identifies potential changes needed to upgrade from **v2023-08-01** to **v2025-01-01**.
+Your BattleX application uses Cashfree for payment processing and wallet payouts. This document identifies potential changes needed to upgrade from **v2023-08-01** to **v2025-01-01**.
 
 ---
 
@@ -230,7 +230,7 @@ order_id = order_obj.get('order_id')
   "order_meta": {
     "return_url": "https://battlex.com/payment/callback"
   },
-  "order_note": "BATTLE-X registration",
+  "order_note": "BattleX registration",
   "order_status": "ACTIVE",
   "payment_link": "https://checkout.cashfree.com/pay/...",
   "payment_session_id": "session_abcd1234efgh5678"

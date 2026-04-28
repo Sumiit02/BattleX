@@ -61,7 +61,7 @@ def test_order_response_parsing():
             "order_meta": {
                 "return_url": "https://example.com/callback"
             },
-            "order_note": "BATTLE-X registration",
+            "order_note": "BattleX registration",
             "order_status": "ACTIVE",
             "payment_link": "https://checkout.cashfree.com/pay/p123",
             "payment_session_id": "session_abc123xyz",
@@ -82,7 +82,7 @@ def test_order_response_parsing():
             "order_meta": {
                 "return_url": "https://example.com/callback"
             },
-            "order_note": "BATTLE-X registration",
+            "order_note": "BattleX registration",
             # New fields in v2025-01-01 (possible additions)
             "payment_session_id": "session_abc123xyz_v2",
             "payment_link": "https://checkout.cashfree.com/pay/p456",

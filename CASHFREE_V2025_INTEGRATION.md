@@ -228,7 +228,7 @@ order_id = order_obj.get('order_id')
   "order_currency": "INR",
   "order_id": "BXR123456",
   "order_meta": {
-    "return_url": "https://battlex.com/payment/callback"
+    "return_url": "https://battlex.co.in/payment/callback"
   },
   "order_note": "BattleX registration",
   "order_status": "ACTIVE",

@@ -2561,7 +2561,7 @@ def wallet_deposit():
     user_row = cur.fetchone() or ('', '')
     conn.close()
 
-    customer_email = str(user_row[0] or '').strip() or 'player@battlex.local'
+    customer_email = str(user_row[0] or '').strip() or 'player@battlex.co.in'
     customer_phone = str(user_row[1] or '').strip()
     if not _is_valid_mobile(customer_phone):
         customer_phone = '9999999999'
@@ -3235,7 +3235,7 @@ def create_payment_order():
             order_amount = 1.0
 
         if not customer_email:
-            customer_email = 'player@battlex.local'
+            customer_email = 'player@battlex.co.in'
         if not re.match(r'^[0-9]{10}$', str(customer_phone or '')):
             customer_phone = '9999999999'
 

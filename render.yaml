@@ -28,6 +28,18 @@ services:
         value: /var/data/uploads
       - key: APP_TIMEZONE
         value: Asia/Kolkata
+      - key: CASHFREE_ENV
+        value: production
+      - key: CASHFREE_APP_ID
+        sync: false
+      - key: CASHFREE_SECRET_KEY
+        sync: false
+      - key: CASHFREE_WEBHOOK_SECRET
+        sync: false
+      - key: CASHFREE_WEBHOOK_REQUIRE_SIGNATURE
+        value: "1"
+      - key: CASHFREE_API_VERSION
+        value: 2023-08-01
       - key: CASHFREE_PAYOUTS_ENABLED
         value: "1"
       - key: CASHFREE_PAYOUTS_BASE_URL

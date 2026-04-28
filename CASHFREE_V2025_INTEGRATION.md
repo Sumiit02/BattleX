@@ -1,7 +1,7 @@
 # Cashfree API v2025-01-01 Integration Guide
 
 ## Overview
-Your BattleX application uses Cashfree for payment processing and wallet payouts. This document identifies potential changes needed to upgrade from **v2023-08-01** to **v2025-01-01**.
+Your BATTLE-X application uses Cashfree for payment processing and wallet payouts. This document identifies potential changes needed to upgrade from **v2023-08-01** to **v2025-01-01**.
 
 ---
 

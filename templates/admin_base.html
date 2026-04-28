@@ -60,6 +60,25 @@
       color: #ffffff;
       box-shadow: 0 10px 25px rgba(37, 99, 235, 0.25);
     }
+    .admin-nav-badge {
+      min-width: 1.3rem;
+      height: 1.3rem;
+      padding: 0 0.35rem;
+      border-radius: 999px;
+      background: #ef4444;
+      color: #ffffff;
+      font-size: 0.72rem;
+      font-weight: 700;
+      line-height: 1.3rem;
+      text-align: center;
+      margin-left: auto;
+      box-shadow: 0 6px 16px rgba(239, 68, 68, 0.28);
+    }
+    .admin-nav-link.is-active .admin-nav-badge {
+      background: rgba(255, 255, 255, 0.18);
+      color: #ffffff;
+      box-shadow: none;
+    }
     main.admin-main {
       background: transparent;
       color: var(--admin-text);
@@ -125,17 +144,17 @@
       </div>
       <nav class="space-y-1 text-sm">
         {% set active = p == url_for('admin_dashboard') %}
-        <a href="{{ url_for('admin_dashboard') }}" class="admin-nav-link {{ 'is-active' if active else '' }}">🏠 Dashboard</a>
+        <a href="{{ url_for('admin_dashboard') }}" class="admin-nav-link {{ 'is-active' if active else '' }}">🏠 Dashboard{% if admin_sidebar_badges.dashboard %}<span class="admin-nav-badge">{{ admin_sidebar_badges.dashboard }}</span>{% endif %}</a>
         {% set active = p == url_for('admin_events') %}
         <a href="{{ url_for('admin_events') }}" class="admin-nav-link {{ 'is-active' if active else '' }}">🏟️ Events</a>
         {% set active = p == url_for('admin_matches') %}
         <a href="{{ url_for('admin_matches') }}" class="admin-nav-link {{ 'is-active' if active else '' }}">🎮 Matches</a>
         {% set active = p == url_for('admin_payments') %}
-        <a href="{{ url_for('admin_payments') }}" class="admin-nav-link {{ 'is-active' if active else '' }}">💳 Payments</a>
+        <a href="{{ url_for('admin_payments') }}" class="admin-nav-link {{ 'is-active' if active else '' }}">💳 Payments{% if admin_sidebar_badges.payments %}<span class="admin-nav-badge">{{ admin_sidebar_badges.payments }}</span>{% endif %}</a>
         {% set active = p == url_for('admin_wallet') %}
-        <a href="{{ url_for('admin_wallet') }}" class="admin-nav-link {{ 'is-active' if active else '' }}">💼 Wallet Withdrawals</a>
+        <a href="{{ url_for('admin_wallet') }}" class="admin-nav-link {{ 'is-active' if active else '' }}">💼 Wallet Withdrawals{% if admin_sidebar_badges.wallet_withdrawals %}<span class="admin-nav-badge">{{ admin_sidebar_badges.wallet_withdrawals }}</span>{% endif %}</a>
         {% set active = p == url_for('admin_prize_requests') %}
-        <a href="{{ url_for('admin_prize_requests') }}" class="admin-nav-link {{ 'is-active' if active else '' }}">🏆 Prize Requests</a>
+        <a href="{{ url_for('admin_prize_requests') }}" class="admin-nav-link {{ 'is-active' if active else '' }}">🏆 Prize Requests{% if admin_sidebar_badges.prize_requests %}<span class="admin-nav-badge">{{ admin_sidebar_badges.prize_requests }}</span>{% endif %}</a>
         {% set active = p == url_for('admin_players') %}
         <a href="{{ url_for('admin_players') }}" class="admin-nav-link {{ 'is-active' if active else '' }}">👥 Players</a>
         {% set active = p == url_for('admin_player_portal') %}

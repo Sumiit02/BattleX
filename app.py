@@ -970,6 +970,62 @@ def _cashfree_create_payout_transfer(request_row):
     }, ''
 
 
+def _get_admin_sidebar_badge_counts():
+    counts = {
+        'dashboard': 0,
+        'payments': 0,
+        'wallet_withdrawals': 0,
+        'prize_requests': 0,
+    }
+
+    if session.get('role') != 'admin':
+        return counts
+
+    conn = None
+    try:
+        conn = sqlite3.connect(DB_NAME)
+        cur = conn.cursor()
+
+        cur.execute(
+            """SELECT COUNT(*)
+               FROM registrations
+               WHERE COALESCE(status, 'pending') = 'pending'
+                  OR (COALESCE(refund_requested, 0) = 1 AND COALESCE(refunded, 0) = 0)"""
+        )
+        counts['payments'] = int(cur.fetchone()[0] or 0)
+
+        cur.execute(
+            """SELECT COUNT(*)
+               FROM wallet_withdrawal_requests
+               WHERE COALESCE(status, 'pending') = 'pending'"""
+        )
+        counts['wallet_withdrawals'] = int(cur.fetchone()[0] or 0)
+
+        cur.execute(
+            """SELECT COUNT(*)
+               FROM prize_money_requests
+               WHERE COALESCE(status, 'pending') = 'pending'"""
+        )
+        counts['prize_requests'] = int(cur.fetchone()[0] or 0)
+
+        counts['dashboard'] = counts['payments'] + counts['wallet_withdrawals'] + counts['prize_requests']
+    except Exception:
+        pass
+    finally:
+        if conn:
+            try:
+                conn.close()
+            except Exception:
+                pass
+
+    return counts
+
+
+@app.context_processor
+def inject_admin_sidebar_badges():
+    return {'admin_sidebar_badges': _get_admin_sidebar_badge_counts()}
+
+
 def _wallet_apply_payout_result(request_id, provider_status, provider_reference=None, provider_response=None):
     provider_status = _normalize_payout_status(provider_status)
     conn = sqlite3.connect(DB_NAME)

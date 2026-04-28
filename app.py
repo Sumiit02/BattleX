@@ -91,6 +91,7 @@ except PermissionError:
     print(f"UPLOAD_DIR not writable, using fallback: {STATIC_UPLOAD_FOLDER}")
 APP_TIMEZONE = os.getenv('APP_TIMEZONE', 'Asia/Kolkata')
 APP_BASE_URL = (os.getenv('APP_BASE_URL') or '').strip().rstrip('/')
+CASHFREE_RETURN_BASE_URL = (os.getenv('CASHFREE_RETURN_BASE_URL') or '').strip().rstrip('/')
 try:
     LOCAL_TIMEZONE = ZoneInfo(APP_TIMEZONE)
 except Exception:
@@ -1113,8 +1114,9 @@ def _wallet_apply_payout_result(request_id, provider_status, provider_reference=
 
 def _cashfree_callback_url(endpoint_name):
     path = url_for(endpoint_name)
-    if APP_BASE_URL:
-        base = APP_BASE_URL
+    base_override = CASHFREE_RETURN_BASE_URL or APP_BASE_URL
+    if base_override:
+        base = base_override
         if (IS_PRODUCTION or CASHFREE_ENV == 'production') and base.startswith('http://'):
             base = 'https://' + base[len('http://'):]
         return f"{base}{path}"

@@ -136,6 +136,7 @@ Recommended env vars:
 
 - `CASHFREE_WEBHOOK_SECRET` (if not set, app falls back to `CASHFREE_SECRET_KEY`)
 - `CASHFREE_WEBHOOK_REQUIRE_SIGNATURE=1` (recommended for production)
+- `CASHFREE_RETURN_BASE_URL` (set this to a Cashfree-approved domain for checkout redirects during domain migration)
 
 ## Cashfree Payouts (Automatic Bank/UPI Withdrawals)
 

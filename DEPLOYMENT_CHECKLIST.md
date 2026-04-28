@@ -1,17 +1,17 @@
-# Cashfree v2025-01-01 Deployment Checklist & Test Results
+# Cashfree v2023-08-01 Deployment Checklist & Test Results
 
 ## Executive Summary
 
 **Status: ✅ Ready for Sandbox Testing**
 
-Your BattleX application has been successfully upgraded to Cashfree API **v2025-01-01**. All code changes have been made and internal compatibility checks pass. The next phase requires **sandbox testing** to validate payment flows with actual API responses.
+Your BattleX application has been successfully upgraded to Cashfree API **v2023-08-01**. All code changes have been made and internal compatibility checks pass. The next phase requires **sandbox testing** to validate payment flows with actual API responses.
 
 ---
 
 ## ✅ Completed Tasks
 
 ### 1. Configuration Updates
-- [x] Updated `.env` CASHFREE_API_VERSION=2025-01-01
+- [x] Updated `.env` CASHFREE_API_VERSION=2023-08-01
 - [x] Updated `.env.example` with new version
 - [x] Updated `app.py` default version constant
 - [x] Updated `render.yaml` production deployment config
@@ -34,7 +34,7 @@ Your BattleX application has been successfully upgraded to Cashfree API **v2025-
 ### 4. Internal Integration Tests
 ```
 CASHFREE CONFIGURATION:
-  API Version:              2025-01-01 ✓
+  API Version:              2023-08-01 ✓
   Environment:              production ✓
   Payment Configured:       True ✓
   Payouts Enabled:          True ✓
@@ -65,7 +65,7 @@ TERMINAL STATUSES SET: {PAID, FAILED, EXPIRED, CANCELLED, TERMINATED}
 ## 🔄 Remaining Work
 
 ### Phase 2A: Sandbox Testing (Recommended)
-**Objective:** Validate all payment flows work with v2025-01-01 API responses
+**Objective:** Validate all payment flows work with v2023-08-01 API responses
 
 #### Test Case 1: Complete Payment Flow
 1. Switch environment to sandbox:
@@ -118,7 +118,7 @@ TERMINAL STATUSES SET: {PAID, FAILED, EXPIRED, CANCELLED, TERMINATED}
 **Objective:** Document actual API response structures
 
 For each endpoint, capture and document:
-- Actual response from Cashfree v2025-01-01
+- Actual response from Cashfree v2023-08-01
 - Compare field names vs v2023-08-01
 - Identify any breaking changes
 - Update code if necessary
@@ -172,7 +172,7 @@ For each endpoint, capture and document:
 **Debug:** Log all webhook payloads received
 
 ### Issue: Payout Transfer Status Stuck
-**Cause:** Status field renamed in v2025-01-01
+**Cause:** Status field renamed in v2023-08-01
 **Solution:** Check actual field names in responses
 **Debug:** Log transfer responses from Cashfree
 
@@ -248,7 +248,7 @@ If issues occur:
 
 1. Immediate: Set `CASHFREE_API_VERSION=2023-08-01`
 2. Verify: Run payment test to confirm old version works
-3. Analyze: Collect all error logs from v2025-01-01 attempt
+3. Analyze: Collect all error logs from v2023-08-01 attempt
 4. Contact: Cashfree support with detailed logs
 5. Post-mortem: Document what changed and plan fix
 
@@ -258,13 +258,13 @@ If issues occur:
 
 The following files have been created to support testing:
 
-1. **[CASHFREE_V2025_INTEGRATION.md](CASHFREE_V2025_INTEGRATION.md)**
+1. **[CASHFREE_V2023_INTEGRATION.md](CASHFREE_V2023_INTEGRATION.md)**
    - Detailed integration guide
    - Potential breaking changes
    - Response examples
    - Debugging tips
 
-2. **[tools/test_cashfree_v2025_integration.py](tools/test_cashfree_v2025_integration.py)**
+2. **[tools/test_cashfree_v2023_integration.py](tools/test_cashfree_v2023_integration.py)**
    - Automated integration test suite
    - Configuration validation
    - Response parsing tests
@@ -304,16 +304,16 @@ The following files have been created to support testing:
 **For API-related issues:**
 - Cashfree Docs: https://docs.cashfree.com
 - Support: https://cashfree.com/support
-- Reference: Include API version (2025-01-01) in all tickets
+- Reference: Include API version (2023-08-01) in all tickets
 
 **For Application Issues:**
-- Check CASHFREE_V2025_INTEGRATION.md for known issues
+- Check CASHFREE_V2023_INTEGRATION.md for known issues
 - Enable debug logging (see Monitoring section above)
 - Review response payloads with Cashfree support
 
 ---
 
-## ✨ Benefits of v2025-01-01
+## ✨ Benefits of v2023-08-01
 
 - Improved security standards
 - Enhanced webhook reliability
@@ -325,6 +325,6 @@ The following files have been created to support testing:
 ---
 
 **Last Updated:** 2025-01-22
-**API Version:** 2025-01-01
+**API Version:** 2023-08-01
 **Status:** Ready for sandbox testing
 

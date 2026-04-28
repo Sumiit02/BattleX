@@ -1,7 +1,7 @@
-# Cashfree API v2025-01-01 Integration Guide
+# Cashfree API v2023-08-01 Integration Guide
 
 ## Overview
-Your BattleX application uses Cashfree for payment processing and wallet payouts. This document identifies potential changes needed to upgrade from **v2023-08-01** to **v2025-01-01**.
+Your BattleX application uses Cashfree for payment processing and wallet payouts. This document captures the integration details for **v2023-08-01**.
 
 ---
 
@@ -42,7 +42,7 @@ Your BattleX application uses Cashfree for payment processing and wallet payouts
 
 ---
 
-## Potential Breaking Changes v2023-08-01 → v2025-01-01
+## Compatibility Notes for v2023-08-01
 
 ### ✅ LIKELY PRESERVED
 - `order_id` field and format
@@ -74,7 +74,7 @@ if order_status != 'PAID':
 payment_session_id = order_data.get('payment_session_id')
 payment_link = order_data.get('payment_link')
 
-# Possible v2025-01-01 changes:
+# Possible v2023-08-01 changes:
 # - payment_session_id → checkout_session_id
 # - payment_link → checkout_url
 # - payment_link → order_meta.payment_link
@@ -85,7 +85,7 @@ payment_link = order_data.get('payment_link')
 # Current handling (line 1208):
 return_url = (order_data.get('order_meta') or {}).get('return_url')
 
-# Possible changes in v2025-01-01:
+# Possible changes in v2023-08-01:
 # - Flattened structure
 # - Renamed nesting levels
 # - New metadata container
@@ -108,7 +108,7 @@ payload.get('message') or 'Unable to verify payment status'
 order_obj = data.get('order') or {}
 order_id = order_obj.get('order_id')
 
-# Possible v2025-01-01 changes:
+# Possible v2023-08-01 changes:
 # - Flattened payload: data.order_id instead of data.order.order_id
 # - New webhook event types
 # - Different signature header names
@@ -182,7 +182,7 @@ order_id = order_obj.get('order_id')
 
 2. **Run Test Suite**
    ```bash
-   python tools/test_cashfree_v2025_integration.py
+   python tools/test_cashfree_v2023_integration.py
    ```
 
 3. **Manual Payment Flow Test**
@@ -204,7 +204,7 @@ order_id = order_obj.get('order_id')
 4. Monitor logs for any parsing errors
 
 ### Phase 3: Production Rollout
-1. Deploy with v2025-01-01 configuration
+1. Deploy with v2023-08-01 configuration
 2. Monitor payment success rate
 3. Watch logs for response parsing issues
 4. Have rollback plan ready
@@ -213,7 +213,7 @@ order_id = order_obj.get('order_id')
 
 ## Common Response Examples
 
-### Payment Order Creation Response (v2025-01-01)
+### Payment Order Creation Response (v2023-08-01)
 ```json
 {
   "cf_payment_id": 12345,
@@ -237,7 +237,7 @@ order_id = order_obj.get('order_id')
 }
 ```
 
-### Order Status Verification Response (v2025-01-01)
+### Order Status Verification Response (v2023-08-01)
 ```json
 {
   "cf_payment_id": 12345,
@@ -253,7 +253,7 @@ order_id = order_obj.get('order_id')
 }
 ```
 
-### Webhook Payload (v2025-01-01)
+### Webhook Payload (v2023-08-01)
 ```json
 {
   "type": "PAYMENT_SUCCESS",
@@ -323,13 +323,13 @@ If issues occur after upgrade:
    CASHFREE_API_VERSION=2023-08-01
    ```
 2. **Verify Payments Still Work**
-3. **Contact Cashfree Support** for v2025-01-01 migration assistance
+3. **Contact Cashfree Support** for v2023-08-01 migration assistance
 4. **Post-Analysis**: Review actual vs expected response formats
 
 ---
 
 ## References
-- Cashfree v2025-01-01 API Documentation: https://docs.cashfree.com/
+- Cashfree v2023-08-01 API Documentation: https://docs.cashfree.com/
 - Payment Gateway API: https://docs.cashfree.com/api-reference/payments/
 - Payouts API: https://docs.cashfree.com/api-reference/payouts/
 - Webhook Documentation: https://docs.cashfree.com/docs/webhooks/

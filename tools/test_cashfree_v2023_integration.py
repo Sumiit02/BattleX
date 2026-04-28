@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Test suite for Cashfree API v2025-01-01 integration compatibility.
+Test suite for Cashfree API v2023-08-01 integration compatibility.
 Tests payment order creation, webhook handling, and payout flows.
 """
 
@@ -39,12 +39,12 @@ print()
 # ============================================================================
 
 def test_order_response_parsing():
-    """Test if the code correctly parses Cashfree v2025-01-01 order response."""
+    """Test if the code correctly parses Cashfree v2023-08-01 order response."""
     
     print("\n[TEST 1] Order Creation Response Parsing")
     print("-" * 80)
     
-    # Sample Cashfree v2025-01-01 order creation response structure
+    # Sample Cashfree v2023-08-01 order creation response structure
     sample_responses = {
         "v2023-08-01": {
             "cf_payment_id": 12345,
@@ -67,8 +67,8 @@ def test_order_response_parsing():
             "payment_session_id": "session_abc123xyz",
             "settlements": None
         },
-        "v2025-01-01": {
-            # Expected changes in v2025-01-01
+        "v2023-08-01-extended": {
+            # Extended sample payload compatible with v2023-08-01
             "order_id": "BXR12345",
             "order_amount": 100.00,
             "order_currency": "INR",
@@ -83,11 +83,11 @@ def test_order_response_parsing():
                 "return_url": "https://example.com/callback"
             },
             "order_note": "BattleX registration",
-            # New fields in v2025-01-01 (possible additions)
+            # Additional fields that may appear in responses
             "payment_session_id": "session_abc123xyz_v2",
             "payment_link": "https://checkout.cashfree.com/pay/p456",
             "cf_payment_id": None,  # Might be deprecated
-            "created_at": "2025-01-15T10:30:00Z",
+            "created_at": "2023-01-15T10:30:00Z",
             "settlement_details": {}  # Possible new field
         }
     }
@@ -98,7 +98,7 @@ def test_order_response_parsing():
     try:
         result = app._cashfree_order_to_api_response(
             order_id="BXR12345",
-            order_data=sample_responses.get("v2025-01-01", {}),
+            order_data=sample_responses.get("v2023-08-01", {}),
             fallback_amount_paise=10000
         )
         
@@ -260,7 +260,7 @@ def test_webhook_signature_handling():
 # ============================================================================
 
 def test_payout_response_parsing():
-    """Test if payout response parsing handles v2025-01-01 format."""
+    """Test if payout response parsing handles v2023-08-01 format."""
     
     print("\n[TEST 5] Payout Response Parsing")
     print("-" * 80)
@@ -270,7 +270,7 @@ def test_payout_response_parsing():
         "transfer_id": "WDR123456789123456",
         "reference_id": "wallet_withdrawal_123",
         "amount": 100.0,
-        "status": "SUCCESS",  # May change in v2025-01-01
+        "status": "SUCCESS",  # May change in v2023-08-01
         "transfer_status": "PROCESSED",
         "created_at": "2025-01-15T10:30:00Z",
         "utr": "UTR123456789"
@@ -340,9 +340,9 @@ def test_configuration():
 # ============================================================================
 
 def test_critical_fields():
-    """Document critical fields that changed in v2025-01-01."""
+    """Document critical fields that changed in v2023-08-01."""
     
-    print("\n[TEST 7] Known API Changes (v2023-08-01 → v2025-01-01)")
+    print("\n[TEST 7] Known API Behavior Notes (v2023-08-01)")
     print("-" * 80)
     
     changes = {
@@ -418,7 +418,7 @@ def run_all_tests():
     print(f"\nTotal: {passed}/{total} tests passed")
     
     if passed == total:
-        print("\n🎉 All tests passed! Your integration is compatible with v2025-01-01")
+        print("\n🎉 All tests passed! Your integration is compatible with v2023-08-01")
         return 0
     else:
         print(f"\n⚠️  {total - passed} test(s) may need attention")

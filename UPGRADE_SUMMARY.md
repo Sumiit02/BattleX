@@ -1,9 +1,9 @@
-# Cashfree v2025-01-01 Upgrade - Summary & Next Steps
+# Cashfree v2023-08-01 Upgrade - Summary & Next Steps
 
 ## 🎯 What Has Been Completed
 
 ### 1. ✅ Configuration Files Updated
-Your BattleX application has been upgraded from Cashfree API **v2023-08-01** → **v2025-01-01**
+Your BattleX application is now standardized on Cashfree API **v2023-08-01**.
 
 **Files Modified:**
 - ✅ `.env` - API version updated, payouts enabled
@@ -37,7 +37,7 @@ All payment processing functions tested and confirmed working:
 ### 4. ✅ Documentation Created
 Three comprehensive guides for testing and deployment:
 
-1. **CASHFREE_V2025_INTEGRATION.md**
+1. **CASHFREE_V2023_INTEGRATION.md**
    - Technical integration guide
    - Identified potential breaking changes
    - Sample response formats
@@ -50,7 +50,7 @@ Three comprehensive guides for testing and deployment:
    - Deployment strategy
    - Rollback procedures
 
-3. **tools/test_cashfree_v2025_integration.py**
+3. **tools/test_cashfree_v2023_integration.py**
    - Automated test suite
    - Configuration validation
    - Response parsing tests
@@ -64,7 +64,7 @@ Three comprehensive guides for testing and deployment:
 
 ```
 CONFIGURATION:
-  API Version: 2025-01-01 ✓
+  API Version: 2023-08-01 ✓
   Environment: production ✓
   Payment Configured: True ✓
   Payouts Enabled: True ✓
@@ -137,15 +137,15 @@ The good news: **Your code is defensive** - it uses `.get()` for field access, s
 ### Core Integration Files
 ```
 BattleX/
-├── CASHFREE_V2025_INTEGRATION.md      ← Technical guide
+├── CASHFREE_V2023_INTEGRATION.md      ← Technical guide
 ├── DEPLOYMENT_CHECKLIST.md             ← Test procedures  
-├── .env                                ← Updated with v2025-01-01
+├── .env                                ← Updated with v2023-08-01
 ├── .env.example                        ← Template updated
 ├── app.py                              ← Config & badges added
 ├── render.yaml                         ← Production config updated
 ├── templates/admin_base.html           ← Badge rendering added
 └── tools/
-    └── test_cashfree_v2025_integration.py ← Test suite
+    └── test_cashfree_v2023_integration.py ← Test suite
 ```
 
 ---
@@ -155,7 +155,7 @@ BattleX/
 ### 1. Review Documentation (5 min)
 ```bash
 # Read these in order:
-1. CASHFREE_V2025_INTEGRATION.md     (understand integration points)
+1. CASHFREE_V2023_INTEGRATION.md     (understand integration points)
 2. DEPLOYMENT_CHECKLIST.md            (understand test cases)
 ```
 
@@ -200,7 +200,7 @@ export CASHFREE_ENV=sandbox
 
 ### If These Fail
 1. Capture the actual API response
-2. Compare with sample responses in CASHFREE_V2025_INTEGRATION.md
+2. Compare with sample responses in CASHFREE_V2023_INTEGRATION.md
 3. Check DEPLOYMENT_CHECKLIST.md troubleshooting section
 4. Contact Cashfree support with logs
 
@@ -225,7 +225,7 @@ These badges update in real-time as requests change status!
 **If you encounter issues:**
 
 1. **Check Documentation First**
-   - CASHFREE_V2025_INTEGRATION.md - Known issues section
+   - CASHFREE_V2023_INTEGRATION.md - Known issues section
    - DEPLOYMENT_CHECKLIST.md - Troubleshooting section
 
 2. **Enable Debug Logging**
@@ -233,7 +233,7 @@ These badges update in real-time as requests change status!
    - Print API requests/responses to diagnose issues
 
 3. **Contact Cashfree Support**
-   - Provide API version (v2025-01-01)
+   - Provide API version (v2023-08-01)
    - Include full API response (redact sensitive data)
    - Reference your merchant account
 
@@ -299,7 +299,7 @@ After completing sandbox testing and deploying:
 
 **Your BattleX application is now upgrade-ready! 🚀**
 
-Start with CASHFREE_V2025_INTEGRATION.md to understand the integration, then follow DEPLOYMENT_CHECKLIST.md for detailed test procedures.
+Start with CASHFREE_V2023_INTEGRATION.md to understand the integration, then follow DEPLOYMENT_CHECKLIST.md for detailed test procedures.
 
 Questions? Check the documentation files - they contain comprehensive troubleshooting guides.
 

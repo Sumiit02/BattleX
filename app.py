@@ -2502,56 +2502,6 @@ def init_db():
 
     conn.commit()
     conn.close()
-    )
-    """)
-    # Add new columns if they don't exist (best-effort)
-    for col_sql in [
-        ("entry_fee", "INTEGER DEFAULT 0"),
-        ("prize_pool", "TEXT"),
-        ("is_open", "INTEGER DEFAULT 1"),
-        ("start_time", "TEXT"),
-        ("end_time", "TEXT"),
-        ("field_updates", "TEXT"),
-        ("rules", "TEXT")
-    ]:
-        col, typ = col_sql
-        try:
-            cur.execute(f"ALTER TABLE events ADD COLUMN {col} {typ}")
-        except Exception:
-            pass
-
-    # Backfill: if registrations table missing event_id column, try to add it (safe on most SQLite versions)
-    try:
-        cur.execute("ALTER TABLE registrations ADD COLUMN event_id INTEGER")
-    except Exception:
-        # column probably already exists; ignore
-        pass
-
-    # Seed default events if table empty
-    try:
-        cur.execute("SELECT COUNT(*) FROM events")
-        cnt = cur.fetchone()[0]
-        if cnt == 0:
-            default_modes = [
-                ('br-solo','BR Solo','BR Solo','Upcoming','₹1000',128,128,'India','Mobile','images/freefire.webp','Battle Royale Solo'),
-                ('br-duo','BR Duo','BR Duo','Upcoming','₹2000',64,64,'India','Mobile','images/freefire.webp','Battle Royale Duo'),
-                ('br-squad','BR Squad','BR Squad','Upcoming','₹3000',32,32,'India','Mobile','images/freefire.webp','Battle Royale Squad'),
-                ('cs-1v1','CS 1v1','Clash Squad 1v1','Upcoming','₹4000',64,64,'India','Mobile','images/freefire.webp','Clash 1v1'),
-                ('cs-2v2','CS 2v2','Clash Squad 2v2','Upcoming','₹5000',32,32,'India','Mobile','images/freefire.webp','Clash 2v2'),
-                ('cs-3v3','CS 3v3','Clash Squad 3v3','Upcoming','₹6000',24,24,'India','Mobile','images/freefire.webp','Clash 3v3'),
-                ('cs-4v4','CS 4v4','Clash Squad 4v4','Upcoming','₹7000',16,16,'India','Mobile','images/freefire.webp','Clash 4v4'),
-            ]
-            for dm in default_modes:
-                cur.execute("""
-                    INSERT INTO events (slug, title, mode, date, prize, max_slots, slots_left, region, platform, image, description)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """, dm)
-    except Exception:
-        # ignore seeding errors
-        pass
-
-    conn.commit()
-    conn.close()
 
 
 def ensure_bootstrap_admin():

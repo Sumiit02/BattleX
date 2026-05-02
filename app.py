@@ -1527,7 +1527,306 @@ def _get_google_oauth_session(state=None, token=None):
         token=token
     )
 
-# ---------- DATABASE SETUP ----------
+# ---------- NEW HELPER FUNCTIONS FOR ENHANCED BACKEND ----------
+
+def _get_user_stats(username):
+    """Get comprehensive user statistics."""
+    conn = sqlite3.connect(DB_NAME)
+    cur = conn.cursor()
+    try:
+        # Total registrations
+        cur.execute("SELECT COUNT(*) FROM registrations WHERE username = ?", (username,))
+        total_registrations = int(cur.fetchone()[0] or 0)
+        
+        # Completed registrations
+        cur.execute("SELECT COUNT(*) FROM registrations WHERE username = ? AND status = 'completed'", (username,))
+        completed_registrations = int(cur.fetchone()[0] or 0)
+        
+        # Total amount spent
+        cur.execute("SELECT COALESCE(SUM(amount), 0) FROM registrations WHERE username = ? AND status = 'completed'", (username,))
+        total_spent = int(cur.fetchone()[0] or 0)
+        
+        # Prize money won
+        cur.execute("SELECT COALESCE(SUM(amount), 0) FROM prize_money_requests WHERE username = ? AND status = 'approved'", (username,))
+        prize_money = int(cur.fetchone()[0] or 0)
+        
+        # Win rate
+        win_rate = (completed_registrations / total_registrations * 100) if total_registrations > 0 else 0
+        
+        return {
+            'total_registrations': total_registrations,
+            'completed_registrations': completed_registrations,
+            'total_spent_paise': total_spent,
+            'prize_money_paise': prize_money,
+            'win_rate': round(win_rate, 2)
+        }
+    except Exception:
+        return {'total_registrations': 0, 'completed_registrations': 0, 'total_spent_paise': 0, 'prize_money_paise': 0, 'win_rate': 0}
+    finally:
+        conn.close()
+
+
+def _audit_log(action_type, target_type=None, target_id=None, old_value=None, new_value=None, user_id=None):
+    """Log an action for audit trail."""
+    try:
+        conn = sqlite3.connect(DB_NAME)
+        cur = conn.cursor()
+        username = session.get('user', 'unknown')
+        ip_address = request.remote_addr if request else None
+        user_agent = request.headers.get('User-Agent') if request else None
+        
+        cur.execute(
+            '''INSERT INTO audit_logs (action_type, user_id, username, target_type, target_id, old_value, new_value, ip_address, user_agent)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+            (action_type, user_id, username, target_type, target_id, old_value, new_value, ip_address, user_agent)
+        )
+        conn.commit()
+        conn.close()
+    except Exception as ex:
+        print(f'Failed to log audit entry: {ex}')
+
+
+def _get_event_stats(event_id):
+    """Get comprehensive event statistics."""
+    conn = sqlite3.connect(DB_NAME)
+    cur = conn.cursor()
+    try:
+        # Total registrations
+        cur.execute("SELECT COUNT(*) FROM registrations WHERE event_id = ?", (event_id,))
+        total_registrations = int(cur.fetchone()[0] or 0)
+        
+        # Completed registrations
+        cur.execute("SELECT COUNT(*) FROM registrations WHERE event_id = ? AND status = 'completed'", (event_id,))
+        completed_registrations = int(cur.fetchone()[0] or 0)
+        
+        # Total revenue
+        cur.execute("SELECT COALESCE(SUM(amount), 0) FROM registrations WHERE event_id = ? AND status = 'completed'", (event_id,))
+        total_revenue = int(cur.fetchone()[0] or 0)
+        
+        # Pending approvals
+        cur.execute("SELECT COUNT(*) FROM prize_money_requests WHERE event_id = ? AND status = 'pending'", (event_id,))
+        pending_prizes = int(cur.fetchone()[0] or 0)
+        
+        # Approved prizes
+        cur.execute("SELECT COALESCE(SUM(amount), 0) FROM prize_money_requests WHERE event_id = ? AND status = 'approved'", (event_id,))
+        approved_prizes = int(cur.fetchone()[0] or 0)
+        
+        return {
+            'total_registrations': total_registrations,
+            'completed_registrations': completed_registrations,
+            'total_revenue_paise': total_revenue,
+            'pending_prizes_count': pending_prizes,
+            'approved_prizes_paise': approved_prizes,
+            'fill_rate': (completed_registrations / total_registrations * 100) if total_registrations > 0 else 0
+        }
+    except Exception:
+        return {'total_registrations': 0, 'completed_registrations': 0, 'total_revenue_paise': 0, 'pending_prizes_count': 0, 'approved_prizes_paise': 0, 'fill_rate': 0}
+    finally:
+        conn.close()
+
+
+# ---------- NEW VALIDATION AND ERROR HANDLING FUNCTIONS ----------
+
+def _validate_username(username):
+    """Validate username format and length."""
+    if not username:
+        return False, "Username is required"
+    username = str(username).strip()
+    if len(username) < 3:
+        return False, "Username must be at least 3 characters"
+    if len(username) > 50:
+        return False, "Username must be at most 50 characters"
+    if not re.match(r'^[a-zA-Z0-9_-]+$', username):
+        return False, "Username can only contain letters, numbers, underscore, and dash"
+    return True, ""
+
+
+def _validate_email(email):
+    """Validate email format."""
+    if not email:
+        return False, "Email is required"
+    email = str(email).strip()
+    if len(email) > 254:
+        return False, "Email is too long"
+    email_re = re.compile(r'^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$')
+    if not email_re.match(email):
+        return False, "Invalid email format"
+    return True, ""
+
+
+def _validate_password(password):
+    """Validate password strength."""
+    if not password:
+        return False, "Password is required"
+    password = str(password)
+    if len(password) < 6:
+        return False, "Password must be at least 6 characters"
+    if len(password) > 256:
+        return False, "Password is too long"
+    return True, ""
+
+
+def _validate_phone(phone):
+    """Validate phone number (optional, but if provided must be valid)."""
+    if not phone:
+        return True, ""
+    phone = str(phone).strip()
+    if not re.match(r'^[0-9]{10}$', phone):
+        return False, "Phone must be a 10-digit number"
+    return True, ""
+
+
+def _validate_game_id(game_id):
+    """Validate game ID format."""
+    if not game_id:
+        return True, ""
+    game_id = str(game_id).strip()
+    if len(game_id) > 100:
+        return False, "Game ID is too long"
+    return True, ""
+
+
+def _sanitize_input(value, max_length=None):
+    """Sanitize string input to prevent XSS."""
+    if not value:
+        return ""
+    value = str(value).strip()
+    if max_length and len(value) > max_length:
+        value = value[:max_length]
+    # Basic HTML/Script escaping
+    value = value.replace('<', '&lt;').replace('>', '&gt;').replace('"', '&quot;').replace("'", '&#x27;')
+    return value
+
+
+def _validate_amount(amount, min_val=0, max_val=None):
+    """Validate currency amount."""
+    try:
+        amount = int(float(amount))
+        if amount < min_val:
+            return False, f"Amount must be at least {min_val}"
+        if max_val and amount > max_val:
+            return False, f"Amount must be at most {max_val}"
+        return True, ""
+    except (ValueError, TypeError):
+        return False, "Invalid amount"
+
+
+def _validate_registration_data(data):
+    """Comprehensive validation for registration data."""
+    errors = []
+    
+    # Validate username
+    valid, msg = _validate_username(data.get('username'))
+    if not valid:
+        errors.append(f"Username: {msg}")
+    
+    # Validate email
+    valid, msg = _validate_email(data.get('email'))
+    if not valid:
+        errors.append(f"Email: {msg}")
+    
+    # Validate game_id
+    valid, msg = _validate_game_id(data.get('game_id'))
+    if not valid:
+        errors.append(f"Game ID: {msg}")
+    
+    # Validate phone
+    valid, msg = _validate_phone(data.get('phone'))
+    if not valid:
+        errors.append(f"Phone: {msg}")
+    
+    return errors if errors else None
+
+
+# ---------- HELPER FUNCTIONS FOR ERROR HANDLING ----------
+
+def _handle_db_error(ex, operation_name="database operation"):
+    """Handle and log database errors."""
+    print(f"Database error during {operation_name}: {str(ex)}")
+    if isinstance(ex, sqlite3.IntegrityError):
+        return "This record already exists or violates a constraint", 409
+    elif isinstance(ex, sqlite3.OperationalError):
+        return "Database error - please try again later", 500
+    else:
+        return f"Database error: {str(ex)}", 500
+
+
+def _create_error_response(error_msg, code=400):
+    """Create standardized error JSON response."""
+    return jsonify({'success': False, 'error': error_msg}), code
+
+
+# ---------- NEW UTILITY FUNCTIONS ----------
+
+def _db_upgrade():
+    """Upgrade database schema if needed. Run this after init_db() to ensure all tables exist."""
+    try:
+        init_db()
+        ensure_bootstrap_admin()
+        return True
+    except Exception as ex:
+        print(f"Database upgrade failed: {ex}")
+        return False
+
+
+@app.route('/health')
+def health_check():
+    """Simple health check endpoint."""
+    try:
+        conn = sqlite3.connect(DB_NAME)
+        cur = conn.cursor()
+        cur.execute("SELECT 1")
+        conn.close()
+        return jsonify({'status': 'healthy', 'timestamp': datetime.utcnow().isoformat()}), 200
+    except Exception:
+        return jsonify({'status': 'unhealthy', 'timestamp': datetime.utcnow().isoformat()}), 500
+
+
+@app.route('/api/version')
+def api_version():
+    """Get API version info."""
+    return jsonify({
+        'success': True,
+        'version': '2.0.0',
+        'api_version': CASHFREE_API_VERSION,
+        'environment': 'production' if IS_PRODUCTION else 'development',
+        'timestamp': datetime.utcnow().isoformat()
+    }), 200
+
+
+# ---------- ERROR HANDLERS ----------
+
+@app.errorhandler(404)
+def page_not_found(error):
+    """Handle 404 errors."""
+    if request.path.startswith('/api/'):
+        return jsonify({'success': False, 'error': 'API endpoint not found'}), 404
+    return render_template('404.html'), 404
+
+
+@app.errorhandler(500)
+def internal_error(error):
+    """Handle 500 errors."""
+    if request.path.startswith('/api/'):
+        return jsonify({'success': False, 'error': 'Internal server error'}), 500
+    return render_template('500.html'), 500
+
+
+@app.errorhandler(403)
+def forbidden(error):
+    """Handle 403 errors."""
+    if request.path.startswith('/api/'):
+        return jsonify({'success': False, 'error': 'Forbidden'}), 403
+    flash("You don't have permission to access this resource.", 'error')
+    return redirect(url_for('home')), 403
+
+
+# ---------- NEW HELPER FUNCTIONS FOR ERROR HANDLING ----------
+
+def _is_valid_username(username):
+    """Return only True/False for username validity."""
+    valid, _ = _validate_username(username)
+    return valid
 def init_db():
     # Ensure DB exists and all necessary tables are present. Use IF NOT EXISTS so this is safe
     conn = sqlite3.connect(DB_NAME)
@@ -1770,6 +2069,26 @@ def init_db():
         cur.execute("ALTER TABLE users ADD COLUMN wallet_balance INTEGER DEFAULT 0")
     except Exception:
         pass
+    try:
+        cur.execute("ALTER TABLE users ADD COLUMN is_suspended INTEGER DEFAULT 0")
+    except Exception:
+        pass
+    try:
+        cur.execute("ALTER TABLE users ADD COLUMN suspension_reason TEXT")
+    except Exception:
+        pass
+    try:
+        cur.execute("ALTER TABLE users ADD COLUMN last_login TIMESTAMP")
+    except Exception:
+        pass
+    try:
+        cur.execute("ALTER TABLE users ADD COLUMN profile_verified INTEGER DEFAULT 0")
+    except Exception:
+        pass
+    try:
+        cur.execute("ALTER TABLE users ADD COLUMN total_played INTEGER DEFAULT 0")
+    except Exception:
+        pass
 
     # Registrations table for payment tracking
     cur.execute("""
@@ -1823,6 +2142,18 @@ def init_db():
         pass
     try:
         cur.execute("ALTER TABLE registrations ADD COLUMN payout_upi TEXT")
+    except Exception:
+        pass
+    try:
+        cur.execute("ALTER TABLE registrations ADD COLUMN verification_status TEXT DEFAULT 'unverified'")
+    except Exception:
+        pass
+    try:
+        cur.execute("ALTER TABLE registrations ADD COLUMN disqualified INTEGER DEFAULT 0")
+    except Exception:
+        pass
+    try:
+        cur.execute("ALTER TABLE registrations ADD COLUMN disqualify_reason TEXT")
     except Exception:
         pass
 
@@ -1998,6 +2329,179 @@ def init_db():
         image TEXT,
         description TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+    # Add new columns if they don't exist (best-effort)
+    for col_sql in [
+        ("entry_fee", "INTEGER DEFAULT 0"),
+        ("prize_pool", "TEXT"),
+        ("is_open", "INTEGER DEFAULT 1"),
+        ("start_time", "TEXT"),
+        ("end_time", "TEXT"),
+        ("field_updates", "TEXT"),
+        ("rules", "TEXT"),
+        ("status", "TEXT DEFAULT 'upcoming'"),
+        ("visibility", "TEXT DEFAULT 'public'"),
+        ("organizer_id", "INTEGER"),
+        ("min_participants", "INTEGER DEFAULT 2"),
+        ("max_participants", "INTEGER DEFAULT 100")
+    ]:
+        col, typ = col_sql
+        try:
+            cur.execute(f"ALTER TABLE events ADD COLUMN {col} {typ}")
+        except Exception:
+            pass
+
+    # New table for match results
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS match_results (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        event_id INTEGER NOT NULL,
+        registration_id INTEGER NOT NULL,
+        match_number INTEGER,
+        player_rank INTEGER,
+        kills INTEGER DEFAULT 0,
+        deaths INTEGER DEFAULT 0,
+        score INTEGER DEFAULT 0,
+        result TEXT,
+        submitted_by TEXT,
+        verified_at TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (event_id) REFERENCES events (id),
+        FOREIGN KEY (registration_id) REFERENCES registrations (id)
+    )
+    """)
+
+    # New table for player leaderboards
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS leaderboards (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        event_id INTEGER NOT NULL,
+        username TEXT NOT NULL,
+        rank INTEGER,
+        score INTEGER DEFAULT 0,
+        wins INTEGER DEFAULT 0,
+        participation_count INTEGER DEFAULT 0,
+        avg_score REAL DEFAULT 0,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (event_id) REFERENCES events (id),
+        FOREIGN KEY (username) REFERENCES users (username)
+    )
+    """)
+
+    # New table for audit logs
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS audit_logs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        action_type TEXT NOT NULL,
+        user_id INTEGER,
+        username TEXT,
+        target_id INTEGER,
+        target_type TEXT,
+        old_value TEXT,
+        new_value TEXT,
+        ip_address TEXT,
+        user_agent TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users (id)
+    )
+    """)
+
+    # New table for system analytics
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS system_analytics (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        metric_type TEXT NOT NULL,
+        metric_value INTEGER DEFAULT 0,
+        metric_data TEXT,
+        recorded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+
+    # New table for player suspensions and reports
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS player_reports (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        reporter_username TEXT NOT NULL,
+        reported_username TEXT NOT NULL,
+        report_type TEXT,
+        reason TEXT,
+        status TEXT DEFAULT 'pending',
+        admin_notes TEXT,
+        resolved_at TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (reporter_username) REFERENCES users (username),
+        FOREIGN KEY (reported_username) REFERENCES users (username)
+    )
+    """)
+
+    # New table for promo codes and coupons
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS promo_codes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        code TEXT NOT NULL UNIQUE,
+        discount_type TEXT,
+        discount_value INTEGER,
+        max_uses INTEGER,
+        current_uses INTEGER DEFAULT 0,
+        min_amount INTEGER DEFAULT 0,
+        valid_from TIMESTAMP,
+        valid_until TIMESTAMP,
+        is_active INTEGER DEFAULT 1,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+
+    # New table for support tickets
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS support_tickets (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT NOT NULL,
+        title TEXT NOT NULL,
+        description TEXT,
+        category TEXT,
+        priority TEXT DEFAULT 'medium',
+        status TEXT DEFAULT 'open',
+        assigned_to TEXT,
+        resolution_notes TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        resolved_at TIMESTAMP,
+        FOREIGN KEY (username) REFERENCES users (username)
+    )
+    """)
+
+    # Backfill: if registrations table missing event_id column, try to add it (safe on most SQLite versions)
+    try:
+        cur.execute("ALTER TABLE registrations ADD COLUMN event_id INTEGER")
+    except Exception:
+        # column probably already exists; ignore
+        pass
+
+    # Seed default events if table empty
+    try:
+        cur.execute("SELECT COUNT(*) FROM events")
+        cnt = cur.fetchone()[0]
+        if cnt == 0:
+            default_modes = [
+                ('br-solo','BR Solo','BR Solo','Upcoming','₹1000',128,128,'India','Mobile','images/freefire.webp','Battle Royale Solo'),
+                ('br-duo','BR Duo','BR Duo','Upcoming','₹2000',64,64,'India','Mobile','images/freefire.webp','Battle Royale Duo'),
+                ('br-squad','BR Squad','BR Squad','Upcoming','₹3000',32,32,'India','Mobile','images/freefire.webp','Battle Royale Squad'),
+                ('cs-1v1','CS 1v1','Clash Squad 1v1','Upcoming','₹4000',64,64,'India','Mobile','images/freefire.webp','Clash 1v1'),
+                ('cs-2v2','CS 2v2','Clash Squad 2v2','Upcoming','₹5000',32,32,'India','Mobile','images/freefire.webp','Clash 2v2'),
+                ('cs-3v3','CS 3v3','Clash Squad 3v3','Upcoming','₹6000',24,24,'India','Mobile','images/freefire.webp','Clash 3v3'),
+                ('cs-4v4','CS 4v4','Clash Squad 4v4','Upcoming','₹7000',16,16,'India','Mobile','images/freefire.webp','Clash 4v4'),
+            ]
+            for dm in default_modes:
+                cur.execute("""
+                    INSERT INTO events (slug, title, mode, date, prize, max_slots, slots_left, region, platform, image, description)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, dm)
+    except Exception:
+        # ignore seeding errors
+        pass
+
+    conn.commit()
+    conn.close()
     )
     """)
     # Add new columns if they don't exist (best-effort)
@@ -2925,6 +3429,144 @@ def freefire():
     events = get_events()
     return render_template('freefire.html', events=events, session_user=_get_player_context_username())
 
+
+# ---------- PLAYER SUPPORT ROUTES ----------
+
+@app.route('/support-ticket', methods=['GET', 'POST'])
+def support_ticket():
+    """Create/view support tickets."""
+    if not _can_access_player_portal():
+        flash("Please log in to create a support ticket.", "error")
+        return redirect(url_for('login'))
+
+    username = _get_player_context_username()
+    
+    if request.method == 'POST':
+        if _is_admin_player_preview_active():
+            flash('Player preview mode is read-only for support tickets.', 'error')
+            return redirect(url_for('support_ticket'))
+        
+        title = (request.form.get('title') or '').strip()
+        description = (request.form.get('description') or '').strip()
+        category = (request.form.get('category') or '').strip()
+        
+        if not title or not description:
+            flash('Title and description are required.', 'error')
+            return redirect(url_for('support_ticket'))
+        
+        conn = sqlite3.connect(DB_NAME)
+        cur = conn.cursor()
+        try:
+            cur.execute(
+                '''INSERT INTO support_tickets (username, title, description, category, priority, status)
+                   VALUES (?, ?, ?, ?, ?, ?)''',
+                (username, title, description, category, 'medium', 'open')
+            )
+            conn.commit()
+            ticket_id = cur.lastrowid
+            conn.close()
+            flash(f'Support ticket #{ticket_id} created successfully.', 'success')
+            return redirect(url_for('support_ticket'))
+        except Exception as ex:
+            conn.close()
+            flash(f'Failed to create ticket: {str(ex)}', 'error')
+            return redirect(url_for('support_ticket'))
+    
+    # GET - show tickets
+    conn = sqlite3.connect(DB_NAME)
+    cur = conn.cursor()
+    try:
+        cur.execute(
+            '''SELECT id, title, category, priority, status, created_at, resolved_at
+               FROM support_tickets WHERE username = ? ORDER BY created_at DESC LIMIT 20''',
+            (username,)
+        )
+        
+        tickets = []
+        for row in cur.fetchall():
+            tickets.append({
+                'id': row[0],
+                'title': row[1],
+                'category': row[2],
+                'priority': row[3],
+                'status': row[4],
+                'created_at': row[5],
+                'resolved_at': row[6]
+            })
+        
+        conn.close()
+        return render_template('support_tickets.html', tickets=tickets, username=username)
+    except Exception:
+        conn.close()
+        return render_template('support_tickets.html', tickets=[], username=username)
+
+
+@app.route('/report-player', methods=['POST'])
+def report_player():
+    """Report a player for violation."""
+    if not _can_access_player_portal():
+        return jsonify({'success': False, 'error': 'Please log in to report a player.'}), 403
+
+    username = _get_player_context_username()
+    data = request.get_json() or {}
+    
+    reported_username = (data.get('reported_username') or '').strip()
+    report_type = (data.get('report_type') or '').strip()
+    reason = (data.get('reason') or '').strip()
+    
+    if not all([reported_username, report_type, reason]):
+        return jsonify({'success': False, 'error': 'Missing required fields'}), 400
+    
+    if username == reported_username:
+        return jsonify({'success': False, 'error': 'Cannot report yourself'}), 400
+    
+    conn = sqlite3.connect(DB_NAME)
+    cur = conn.cursor()
+    
+    try:
+        # Check if player already reported recently
+        cur.execute(
+            '''SELECT id FROM player_reports 
+               WHERE reporter_username = ? AND reported_username = ? 
+               AND created_at > datetime('now', '-7 days')''',
+            (username, reported_username)
+        )
+        if cur.fetchone():
+            conn.close()
+            return jsonify({'success': False, 'error': 'You have already reported this player recently.'}), 400
+        
+        cur.execute(
+            '''INSERT INTO player_reports (reporter_username, reported_username, report_type, reason, status)
+               VALUES (?, ?, ?, ?, ?)''',
+            (username, reported_username, report_type, reason, 'pending')
+        )
+        conn.commit()
+        report_id = cur.lastrowid
+        conn.close()
+        
+        return jsonify({'success': True, 'report_id': report_id, 'message': 'Report submitted successfully.'}), 201
+    except Exception as ex:
+        conn.close()
+        return jsonify({'success': False, 'error': str(ex)}), 500
+
+
+@app.route('/api/player-stats/<username>')
+def api_player_stats(username):
+    """Get player statistics (public API)."""
+    try:
+        stats = _get_user_stats(username)
+        if stats['total_registrations'] == 0:
+            return jsonify({'success': False, 'error': 'Player not found'}), 404
+        
+        stats['username'] = username
+        stats['total_spent_label'] = _format_currency_value(stats['total_spent_paise'])
+        stats['prize_money_label'] = _format_currency_value(stats['prize_money_paise'])
+        
+        return jsonify({'success': True, 'stats': stats}), 200
+    except Exception as ex:
+        return jsonify({'success': False, 'error': str(ex)}), 500
+
+
 # ---------- CASHFREE PAYMENT ROUTES ----------
 
 def _finalize_registration_payment(order_id, payment_id, reg_id=None):
@@ -3693,6 +4335,662 @@ def save_registration(data, payment_id, order_id):
     except Exception as e:
         print(f"Error saving registration: {e}")
         return False
+
+
+# ---------- NEW ADMIN ROUTES FOR ENHANCED MANAGEMENT ----------
+
+@app.route('/admin/analytics')
+def admin_analytics():
+    """Admin endpoint for system analytics and insights."""
+    if 'user' not in session or session.get('role') != 'admin':
+        return jsonify({'success': False, 'error': 'Admins only'}), 403
+
+    conn = sqlite3.connect(DB_NAME)
+    cur = conn.cursor()
+    try:
+        # Total users
+        cur.execute("SELECT COUNT(*) FROM users")
+        total_users = int(cur.fetchone()[0] or 0)
+        
+        # Total players
+        cur.execute("SELECT COUNT(*) FROM users WHERE role = 'player'")
+        total_players = int(cur.fetchone()[0] or 0)
+        
+        # Total admins
+        cur.execute("SELECT COUNT(*) FROM users WHERE role = 'admin'")
+        total_admins = int(cur.fetchone()[0] or 0)
+        
+        # Total registrations
+        cur.execute("SELECT COUNT(*) FROM registrations")
+        total_registrations = int(cur.fetchone()[0] or 0)
+        
+        # Completed registrations
+        cur.execute("SELECT COUNT(*) FROM registrations WHERE status = 'completed'")
+        completed_registrations = int(cur.fetchone()[0] or 0)
+        
+        # Total revenue
+        cur.execute("SELECT COALESCE(SUM(amount), 0) FROM registrations WHERE status = 'completed'")
+        total_revenue_paise = int(cur.fetchone()[0] or 0)
+        
+        # Total prize money approved
+        cur.execute("SELECT COALESCE(SUM(amount), 0) FROM prize_money_requests WHERE status = 'approved'")
+        total_prizes_paise = int(cur.fetchone()[0] or 0)
+        
+        # Active events
+        cur.execute("SELECT COUNT(*) FROM events WHERE is_open = 1")
+        active_events = int(cur.fetchone()[0] or 0)
+        
+        # Pending wallet withdrawals
+        cur.execute("SELECT COUNT(*) FROM wallet_withdrawal_requests WHERE status = 'pending'")
+        pending_withdrawals = int(cur.fetchone()[0] or 0)
+        
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'total_users': total_users,
+            'total_players': total_players,
+            'total_admins': total_admins,
+            'total_registrations': total_registrations,
+            'completed_registrations': completed_registrations,
+            'total_revenue': _format_currency_value(total_revenue_paise),
+            'total_revenue_paise': total_revenue_paise,
+            'total_prizes': _format_currency_value(total_prizes_paise),
+            'total_prizes_paise': total_prizes_paise,
+            'active_events': active_events,
+            'pending_withdrawals': pending_withdrawals,
+            'completion_rate': round((completed_registrations / total_registrations * 100), 2) if total_registrations > 0 else 0
+        }), 200
+    except Exception as ex:
+        try:
+            conn.close()
+        except:
+            pass
+        return jsonify({'success': False, 'error': str(ex)}), 500
+
+
+@app.route('/admin/match-results', methods=['GET', 'POST'])
+def admin_match_results():
+    """Manage match results."""
+    if 'user' not in session or session.get('role') != 'admin':
+        return jsonify({'success': False, 'error': 'Admins only'}), 403
+
+    if request.method == 'POST':
+        data = request.get_json() or {}
+        event_id = data.get('event_id')
+        registration_id = data.get('registration_id')
+        player_rank = data.get('player_rank')
+        kills = data.get('kills', 0)
+        deaths = data.get('deaths', 0)
+        score = data.get('score', 0)
+
+        if not all([event_id, registration_id, player_rank]):
+            return jsonify({'success': False, 'error': 'Missing required fields'}), 400
+
+        conn = sqlite3.connect(DB_NAME)
+        cur = conn.cursor()
+        try:
+            cur.execute(
+                '''INSERT INTO match_results (event_id, registration_id, player_rank, kills, deaths, score, submitted_by)
+                   VALUES (?, ?, ?, ?, ?, ?, ?)''',
+                (int(event_id), int(registration_id), int(player_rank), int(kills), int(deaths), int(score), session.get('user'))
+            )
+            conn.commit()
+            result_id = cur.lastrowid
+            conn.close()
+            return jsonify({'success': True, 'result_id': result_id}), 201
+        except Exception as ex:
+            conn.rollback()
+            conn.close()
+            return jsonify({'success': False, 'error': str(ex)}), 500
+    
+    # GET - retrieve match results for an event
+    event_id = request.args.get('event_id')
+    conn = sqlite3.connect(DB_NAME)
+    cur = conn.cursor()
+    try:
+        if event_id:
+            cur.execute(
+                '''SELECT id, event_id, registration_id, player_rank, kills, deaths, score, submitted_by, created_at
+                   FROM match_results WHERE event_id = ? ORDER BY player_rank ASC''',
+                (int(event_id),)
+            )
+        else:
+            cur.execute(
+                '''SELECT id, event_id, registration_id, player_rank, kills, deaths, score, submitted_by, created_at
+                   FROM match_results ORDER BY created_at DESC LIMIT 100'''
+            )
+        
+        results = []
+        for row in cur.fetchall():
+            results.append({
+                'id': row[0],
+                'event_id': row[1],
+                'registration_id': row[2],
+                'player_rank': row[3],
+                'kills': row[4],
+                'deaths': row[5],
+                'score': row[6],
+                'submitted_by': row[7],
+                'created_at': row[8]
+            })
+        
+        conn.close()
+        return jsonify({'success': True, 'results': results}), 200
+    except Exception as ex:
+        conn.close()
+        return jsonify({'success': False, 'error': str(ex)}), 500
+
+
+@app.route('/admin/leaderboard', methods=['GET', 'POST'])
+def admin_leaderboard():
+    """Manage leaderboards."""
+    if 'user' not in session or session.get('role') != 'admin':
+        return jsonify({'success': False, 'error': 'Admins only'}), 403
+
+    conn = sqlite3.connect(DB_NAME)
+    cur = conn.cursor()
+    
+    if request.method == 'POST':
+        # Regenerate leaderboard for an event
+        data = request.get_json() or {}
+        event_id = data.get('event_id')
+        
+        if not event_id:
+            return jsonify({'success': False, 'error': 'event_id required'}), 400
+        
+        try:
+            # Clear existing leaderboard
+            cur.execute('DELETE FROM leaderboards WHERE event_id = ?', (int(event_id),))
+            
+            # Recalculate from match results
+            cur.execute(
+                '''SELECT registration_id, SUM(score) as total_score, COUNT(*) as matches, 
+                          SUM(CASE WHEN player_rank = 1 THEN 1 ELSE 0 END) as wins
+                   FROM match_results WHERE event_id = ?
+                   GROUP BY registration_id ORDER BY total_score DESC''',
+                (int(event_id),)
+            )
+            
+            rank = 1
+            for row in cur.fetchall():
+                reg_id, total_score, match_count, wins = row
+                
+                # Get username from registration
+                cur.execute('SELECT username FROM registrations WHERE id = ?', (int(reg_id),))
+                user_row = cur.fetchone()
+                if user_row:
+                    username = user_row[0]
+                    avg_score = total_score / match_count if match_count > 0 else 0
+                    
+                    cur.execute(
+                        '''INSERT INTO leaderboards (event_id, username, rank, score, wins, participation_count, avg_score)
+                           VALUES (?, ?, ?, ?, ?, ?, ?)''',
+                        (int(event_id), username, rank, int(total_score), int(wins), int(match_count), avg_score)
+                    )
+                    rank += 1
+            
+            conn.commit()
+            return jsonify({'success': True, 'message': 'Leaderboard regenerated'}), 200
+        except Exception as ex:
+            conn.rollback()
+            return jsonify({'success': False, 'error': str(ex)}), 500
+    
+    # GET - retrieve leaderboard
+    event_id = request.args.get('event_id')
+    try:
+        if event_id:
+            cur.execute(
+                '''SELECT id, username, rank, score, wins, participation_count, avg_score
+                   FROM leaderboards WHERE event_id = ? ORDER BY rank ASC''',
+                (int(event_id),)
+            )
+        else:
+            cur.execute(
+                '''SELECT id, username, rank, score, wins, participation_count, avg_score
+                   FROM leaderboards ORDER BY updated_at DESC LIMIT 100'''
+            )
+        
+        leaderboard = []
+        for row in cur.fetchall():
+            leaderboard.append({
+                'id': row[0],
+                'username': row[1],
+                'rank': row[2],
+                'score': row[3],
+                'wins': row[4],
+                'participation_count': row[5],
+                'avg_score': round(row[6], 2) if row[6] else 0
+            })
+        
+        conn.close()
+        return jsonify({'success': True, 'leaderboard': leaderboard}), 200
+    except Exception as ex:
+        conn.close()
+        return jsonify({'success': False, 'error': str(ex)}), 500
+
+
+@app.route('/admin/player-reports', methods=['GET', 'POST'])
+def admin_player_reports():
+    """Manage player reports."""
+    if 'user' not in session or session.get('role') != 'admin':
+        return jsonify({'success': False, 'error': 'Admins only'}), 403
+
+    conn = sqlite3.connect(DB_NAME)
+    cur = conn.cursor()
+    
+    if request.method == 'POST':
+        data = request.get_json() or {}
+        action = data.get('action')
+        report_id = data.get('report_id')
+        
+        if action == 'resolve':
+            status = data.get('status', 'resolved')
+            admin_notes = data.get('admin_notes', '')
+            
+            try:
+                cur.execute(
+                    '''UPDATE player_reports SET status = ?, admin_notes = ?, resolved_at = ?
+                       WHERE id = ?''',
+                    (status, admin_notes, datetime.utcnow().isoformat(), int(report_id))
+                )
+                conn.commit()
+                conn.close()
+                return jsonify({'success': True, 'message': 'Report resolved'}), 200
+            except Exception as ex:
+                conn.close()
+                return jsonify({'success': False, 'error': str(ex)}), 500
+        
+        return jsonify({'success': False, 'error': 'Invalid action'}), 400
+    
+    # GET - retrieve reports
+    status_filter = request.args.get('status', 'pending')
+    try:
+        cur.execute(
+            '''SELECT id, reporter_username, reported_username, report_type, reason, status, admin_notes, created_at
+               FROM player_reports WHERE status = ? ORDER BY created_at DESC LIMIT 50''',
+            (status_filter,)
+        )
+        
+        reports = []
+        for row in cur.fetchall():
+            reports.append({
+                'id': row[0],
+                'reporter': row[1],
+                'reported': row[2],
+                'type': row[3],
+                'reason': row[4],
+                'status': row[5],
+                'admin_notes': row[6],
+                'created_at': row[7]
+            })
+        
+        conn.close()
+        return jsonify({'success': True, 'reports': reports}), 200
+    except Exception as ex:
+        conn.close()
+        return jsonify({'success': False, 'error': str(ex)}), 500
+
+
+@app.route('/admin/promo-codes', methods=['GET', 'POST', 'DELETE'])
+def admin_promo_codes():
+    """Manage promo codes."""
+    if 'user' not in session or session.get('role') != 'admin':
+        return jsonify({'success': False, 'error': 'Admins only'}), 403
+
+    conn = sqlite3.connect(DB_NAME)
+    cur = conn.cursor()
+    
+    if request.method == 'POST':
+        data = request.get_json() or {}
+        code = (data.get('code') or '').strip().upper()
+        discount_type = data.get('discount_type', 'percentage')
+        discount_value = data.get('discount_value', 10)
+        max_uses = data.get('max_uses')
+        min_amount = data.get('min_amount', 0)
+        valid_from = data.get('valid_from')
+        valid_until = data.get('valid_until')
+        
+        if not code or not discount_value:
+            conn.close()
+            return jsonify({'success': False, 'error': 'Code and discount value required'}), 400
+        
+        try:
+            cur.execute(
+                '''INSERT INTO promo_codes (code, discount_type, discount_value, max_uses, min_amount, valid_from, valid_until)
+                   VALUES (?, ?, ?, ?, ?, ?, ?)''',
+                (code, discount_type, int(discount_value), int(max_uses) if max_uses else None, int(min_amount), valid_from, valid_until)
+            )
+            conn.commit()
+            code_id = cur.lastrowid
+            conn.close()
+            return jsonify({'success': True, 'code_id': code_id}), 201
+        except Exception as ex:
+            conn.rollback()
+            conn.close()
+            return jsonify({'success': False, 'error': str(ex)}), 500
+    
+    elif request.method == 'DELETE':
+        code_id = request.args.get('code_id')
+        if not code_id:
+            conn.close()
+            return jsonify({'success': False, 'error': 'code_id required'}), 400
+        
+        try:
+            cur.execute('DELETE FROM promo_codes WHERE id = ?', (int(code_id),))
+            conn.commit()
+            conn.close()
+            return jsonify({'success': True, 'message': 'Promo code deleted'}), 200
+        except Exception as ex:
+            conn.close()
+            return jsonify({'success': False, 'error': str(ex)}), 500
+    
+    # GET - retrieve promo codes
+    try:
+        cur.execute(
+            '''SELECT id, code, discount_type, discount_value, max_uses, current_uses, is_active, created_at
+               FROM promo_codes ORDER BY created_at DESC'''
+        )
+        
+        codes = []
+        for row in cur.fetchall():
+            codes.append({
+                'id': row[0],
+                'code': row[1],
+                'discount_type': row[2],
+                'discount_value': row[3],
+                'max_uses': row[4],
+                'current_uses': row[5],
+                'is_active': bool(row[6]),
+                'created_at': row[7]
+            })
+        
+        conn.close()
+        return jsonify({'success': True, 'codes': codes}), 200
+    except Exception as ex:
+        conn.close()
+        return jsonify({'success': False, 'error': str(ex)}), 500
+
+
+@app.route('/admin/support-tickets', methods=['GET', 'POST'])
+def admin_support_tickets():
+    """Manage support tickets."""
+    if 'user' not in session or session.get('role') != 'admin':
+        return jsonify({'success': False, 'error': 'Admins only'}), 403
+
+    conn = sqlite3.connect(DB_NAME)
+    cur = conn.cursor()
+    
+    if request.method == 'POST':
+        data = request.get_json() or {}
+        action = data.get('action')
+        ticket_id = data.get('ticket_id')
+        
+        if action == 'update':
+            status = data.get('status')
+            resolution_notes = data.get('resolution_notes', '')
+            assigned_to = data.get('assigned_to')
+            
+            try:
+                updates = []
+                params = []
+                
+                if status:
+                    updates.append('status = ?')
+                    params.append(status)
+                if resolution_notes:
+                    updates.append('resolution_notes = ?')
+                    params.append(resolution_notes)
+                if assigned_to:
+                    updates.append('assigned_to = ?')
+                    params.append(assigned_to)
+                if status == 'resolved':
+                    updates.append('resolved_at = ?')
+                    params.append(datetime.utcnow().isoformat())
+                
+                params.append(int(ticket_id))
+                
+                query = f"UPDATE support_tickets SET {', '.join(updates)} WHERE id = ?"
+                cur.execute(query, params)
+                conn.commit()
+                conn.close()
+                return jsonify({'success': True, 'message': 'Ticket updated'}), 200
+            except Exception as ex:
+                conn.close()
+                return jsonify({'success': False, 'error': str(ex)}), 500
+        
+        return jsonify({'success': False, 'error': 'Invalid action'}), 400
+    
+    # GET - retrieve tickets
+    status_filter = request.args.get('status', 'open')
+    try:
+        cur.execute(
+            '''SELECT id, username, title, category, priority, status, assigned_to, created_at
+               FROM support_tickets WHERE status = ? ORDER BY created_at DESC LIMIT 50''',
+            (status_filter,)
+        )
+        
+        tickets = []
+        for row in cur.fetchall():
+            tickets.append({
+                'id': row[0],
+                'username': row[1],
+                'title': row[2],
+                'category': row[3],
+                'priority': row[4],
+                'status': row[5],
+                'assigned_to': row[6],
+                'created_at': row[7]
+            })
+        
+        conn.close()
+        return jsonify({'success': True, 'tickets': tickets}), 200
+    except Exception as ex:
+        conn.close()
+        return jsonify({'success': False, 'error': str(ex)}), 500
+
+
+@app.route('/admin/audit-logs', methods=['GET'])
+def admin_audit_logs():
+    """Retrieve audit logs."""
+    if 'user' not in session or session.get('role') != 'admin':
+        return jsonify({'success': False, 'error': 'Admins only'}), 403
+
+    conn = sqlite3.connect(DB_NAME)
+    cur = conn.cursor()
+    
+    try:
+        limit = request.args.get('limit', 100, type=int)
+        action_type = request.args.get('action_type')
+        username = request.args.get('username')
+        
+        query = 'SELECT id, action_type, username, target_type, target_id, old_value, new_value, created_at FROM audit_logs'
+        params = []
+        
+        conditions = []
+        if action_type:
+            conditions.append('action_type = ?')
+            params.append(action_type)
+        if username:
+            conditions.append('username = ?')
+            params.append(username)
+        
+        if conditions:
+            query += ' WHERE ' + ' AND '.join(conditions)
+        
+        query += ' ORDER BY created_at DESC LIMIT ?'
+        params.append(limit)
+        
+        cur.execute(query, params)
+        
+        logs = []
+        for row in cur.fetchall():
+            logs.append({
+                'id': row[0],
+                'action_type': row[1],
+                'username': row[2],
+                'target_type': row[3],
+                'target_id': row[4],
+                'old_value': row[5],
+                'new_value': row[6],
+                'created_at': row[7]
+            })
+        
+        conn.close()
+        return jsonify({'success': True, 'logs': logs}), 200
+    except Exception as ex:
+        conn.close()
+        return jsonify({'success': False, 'error': str(ex)}), 500
+
+
+@app.route('/admin/players', methods=['GET', 'POST'])
+def admin_manage_players():
+    """Manage players - verification, suspension, etc."""
+    if 'user' not in session or session.get('role') != 'admin':
+        return jsonify({'success': False, 'error': 'Admins only'}), 403
+
+    conn = sqlite3.connect(DB_NAME)
+    cur = conn.cursor()
+    
+    if request.method == 'POST':
+        data = request.get_json() or {}
+        action = data.get('action')
+        username = data.get('username')
+        
+        if not username:
+            conn.close()
+            return jsonify({'success': False, 'error': 'username required'}), 400
+        
+        try:
+            if action == 'verify':
+                cur.execute('UPDATE users SET profile_verified = 1 WHERE username = ?', (username,))
+                _audit_log('player_verified', 'user', None, None, username)
+            
+            elif action == 'suspend':
+                reason = data.get('reason', 'Not specified')
+                cur.execute('UPDATE users SET is_suspended = 1, suspension_reason = ? WHERE username = ?', (reason, username))
+                _audit_log('player_suspended', 'user', None, None, reason)
+            
+            elif action == 'unsuspend':
+                cur.execute('UPDATE users SET is_suspended = 0, suspension_reason = NULL WHERE username = ?', (username,))
+                _audit_log('player_unsuspended', 'user', None, None, None)
+            
+            elif action == 'disqualify':
+                reason = data.get('reason', 'Not specified')
+                event_id = data.get('event_id')
+                cur.execute('UPDATE registrations SET disqualified = 1, disqualify_reason = ? WHERE username = ? AND event_id = ?', (reason, username, event_id))
+                _audit_log('registration_disqualified', 'registration', event_id, None, reason)
+            
+            else:
+                conn.close()
+                return jsonify({'success': False, 'error': 'Invalid action'}), 400
+            
+            conn.commit()
+            conn.close()
+            return jsonify({'success': True, 'message': f'Player {action} successful'}), 200
+        except Exception as ex:
+            conn.close()
+            return jsonify({'success': False, 'error': str(ex)}), 500
+    
+    # GET - list all players with stats
+    try:
+        cur.execute(
+            '''SELECT id, username, email, phone, role, created_at, is_suspended, profile_verified, 
+                      COALESCE((SELECT COUNT(*) FROM registrations WHERE username = u.username AND status = 'completed'), 0) as total_played
+               FROM users u WHERE role = 'player' ORDER BY created_at DESC LIMIT 200'''
+        )
+        
+        players = []
+        for row in cur.fetchall():
+            user_stats = _get_user_stats(row[1])
+            players.append({
+                'id': row[0],
+                'username': row[1],
+                'email': row[2],
+                'phone': row[3],
+                'role': row[4],
+                'created_at': row[5],
+                'is_suspended': bool(row[6]),
+                'profile_verified': bool(row[7]),
+                'total_played': row[8],
+                'total_registrations': user_stats['total_registrations'],
+                'total_spent': _format_currency_value(user_stats['total_spent_paise']),
+                'prize_money': _format_currency_value(user_stats['prize_money_paise']),
+                'win_rate': user_stats['win_rate']
+            })
+        
+        conn.close()
+        return jsonify({'success': True, 'players': players}), 200
+    except Exception as ex:
+        conn.close()
+        return jsonify({'success': False, 'error': str(ex)}), 500
+
+
+@app.route('/admin/system-health', methods=['GET'])
+def admin_system_health():
+    """Get system health and statistics."""
+    if 'user' not in session or session.get('role') != 'admin':
+        return jsonify({'success': False, 'error': 'Admins only'}), 403
+
+    conn = sqlite3.connect(DB_NAME)
+    cur = conn.cursor()
+    
+    try:
+        # Database size/integrity info
+        cur.execute("SELECT COUNT(*) FROM users")
+        total_users = int(cur.fetchone()[0] or 0)
+        
+        cur.execute("SELECT COUNT(*) FROM registrations")
+        total_registrations = int(cur.fetchone()[0] or 0)
+        
+        # Failed transactions
+        cur.execute("SELECT COUNT(*) FROM registrations WHERE status IN ('failed', 'cancelled')")
+        failed_transactions = int(cur.fetchone()[0] or 0)
+        
+        # Pending items
+        cur.execute("SELECT COUNT(*) FROM registrations WHERE status = 'pending'")
+        pending_registrations = int(cur.fetchone()[0] or 0)
+        
+        cur.execute("SELECT COUNT(*) FROM wallet_withdrawal_requests WHERE status = 'pending'")
+        pending_withdrawals = int(cur.fetchone()[0] or 0)
+        
+        cur.execute("SELECT COUNT(*) FROM prize_money_requests WHERE status = 'pending'")
+        pending_prizes = int(cur.fetchone()[0] or 0)
+        
+        # Suspended players
+        cur.execute("SELECT COUNT(*) FROM users WHERE is_suspended = 1")
+        suspended_players = int(cur.fetchone()[0] or 0)
+        
+        # Event stats
+        cur.execute("SELECT COUNT(*) FROM events WHERE is_open = 1")
+        open_events = int(cur.fetchone()[0] or 0)
+        
+        cur.execute("SELECT COUNT(*) FROM events WHERE is_open = 0")
+        closed_events = int(cur.fetchone()[0] or 0)
+        
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'health_status': 'healthy' if failed_transactions < total_registrations * 0.05 else 'warning',
+            'total_users': total_users,
+            'total_registrations': total_registrations,
+            'failed_transactions': failed_transactions,
+            'pending_items': {
+                'registrations': pending_registrations,
+                'withdrawals': pending_withdrawals,
+                'prizes': pending_prizes
+            },
+            'suspended_players': suspended_players,
+            'events': {
+                'open': open_events,
+                'closed': closed_events
+            }
+        }), 200
+    except Exception as ex:
+        conn.close()
+        return jsonify({'success': False, 'error': str(ex)}), 500
+
 
 @app.route('/register_freefire', methods=['GET', 'POST'])
 def register_freefire():

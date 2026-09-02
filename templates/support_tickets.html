@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Support tickets · BattleX</title>
+</head>
+<body>
+  <main>
+    <h1>Support tickets</h1>
+    <p>Signed in as {{ username }}</p>
+    <form method="post" action="{{ url_for('support_ticket') }}">
+      <label>Title <input name="title" required></label>
+      <label>Description <textarea name="description" required></textarea></label>
+      <label>Category <input name="category"></label>
+      <button type="submit">Create ticket</button>
+    </form>
+    <h2>Your recent tickets</h2>
+    {% if tickets %}
+      <ul>
+      {% for ticket in tickets %}
+        <li>#{{ ticket.id }} — {{ ticket.title }} ({{ ticket.status }})</li>
+      {% endfor %}
+      </ul>
+    {% else %}
+      <p>No tickets yet.</p>
+    {% endif %}
+    <a href="{{ url_for('home') }}">Return home</a>
+  </main>
+</body>
+</html>

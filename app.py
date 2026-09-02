@@ -18,7 +18,7 @@ import secrets
 import json
 import hashlib
 import hmac
-from datetime import datetime
+from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 import re
 from werkzeug.utils import secure_filename
@@ -119,18 +119,36 @@ class _CompatCursor:
     def __init__(self, raw_cursor, use_postgres=False):
         self._raw = raw_cursor
         self._use_postgres = use_postgres
+        self._lastrowid = None
 
     def execute(self, query, params=None):
+        auto_returning = False
         if self._use_postgres:
             query = _translate_sql_placeholders(query)
+            # psycopg2 does not expose sqlite's lastrowid.  Add a RETURNING
+            # clause for inserts used by the existing code and retain the id.
+            if re.match(r'^\s*INSERT\s+INTO\b', query, re.IGNORECASE) and not re.search(
+                r'\bRETURNING\b', query, re.IGNORECASE
+            ):
+                query = query.rstrip().rstrip(';') + ' RETURNING id'
+                auto_returning = True
         if params is None:
-            return self._raw.execute(query)
-        return self._raw.execute(query, params)
+            result = self._raw.execute(query)
+        else:
+            result = self._raw.execute(query, params)
+        if self._use_postgres and auto_returning:
+            row = self._raw.fetchone()
+            self._lastrowid = row[0] if row else None
+        return result
 
     def executemany(self, query, seq_of_params):
         if self._use_postgres:
             query = _translate_sql_placeholders(query)
         return self._raw.executemany(query, seq_of_params)
+
+    @property
+    def lastrowid(self):
+        return self._lastrowid
 
     def __getattr__(self, name):
         return getattr(self._raw, name)
@@ -154,7 +172,8 @@ def _db_connect(database_name=DB_NAME, *args, **kwargs):
             raise RuntimeError('psycopg2 is required when DATABASE_URL is set for PostgreSQL')
         sslmode = os.getenv('PGSSLMODE') or ('require' if IS_PRODUCTION else 'prefer')
         # Do not let an unavailable managed database hold a web worker indefinitely.
-        raw = psycopg2.connect(DATABASE_URL, sslmode=sslmode, connect_timeout=10)
+        connect_timeout = _safe_int(os.getenv('DB_CONNECT_TIMEOUT', '10'), 10)
+        raw = psycopg2.connect(DATABASE_URL, sslmode=sslmode, connect_timeout=max(connect_timeout, 1))
         raw.autocommit = False
         return _CompatConnection(raw, use_postgres=True)
     return _ORIGINAL_SQLITE_CONNECT(database_name, *args, **kwargs)
@@ -1848,6 +1867,11 @@ def init_db():
         """)
         cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
         cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS wallet_balance INTEGER DEFAULT 0")
+        cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_suspended INTEGER DEFAULT 0")
+        cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS suspension_reason TEXT")
+        cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login TIMESTAMP")
+        cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_verified INTEGER DEFAULT 0")
+        cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS total_played INTEGER DEFAULT 0")
 
         cur.execute("""
         CREATE TABLE IF NOT EXISTS registrations (
@@ -1878,6 +1902,9 @@ def init_db():
         cur.execute("ALTER TABLE registrations ADD COLUMN IF NOT EXISTS paid_at TEXT")
         cur.execute("ALTER TABLE registrations ADD COLUMN IF NOT EXISTS payout_upi TEXT")
         cur.execute("ALTER TABLE registrations ADD COLUMN IF NOT EXISTS event_id INTEGER")
+        cur.execute("ALTER TABLE registrations ADD COLUMN IF NOT EXISTS verification_status TEXT DEFAULT 'unverified'")
+        cur.execute("ALTER TABLE registrations ADD COLUMN IF NOT EXISTS disqualified INTEGER DEFAULT 0")
+        cur.execute("ALTER TABLE registrations ADD COLUMN IF NOT EXISTS disqualify_reason TEXT")
 
         cur.execute("""
         CREATE TABLE IF NOT EXISTS wallet_transactions (
@@ -2021,6 +2048,108 @@ def init_db():
         cur.execute("ALTER TABLE events ADD COLUMN IF NOT EXISTS end_time TEXT")
         cur.execute("ALTER TABLE events ADD COLUMN IF NOT EXISTS field_updates TEXT")
         cur.execute("ALTER TABLE events ADD COLUMN IF NOT EXISTS rules TEXT")
+        cur.execute("ALTER TABLE events ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'upcoming'")
+        cur.execute("ALTER TABLE events ADD COLUMN IF NOT EXISTS visibility TEXT DEFAULT 'public'")
+        cur.execute("ALTER TABLE events ADD COLUMN IF NOT EXISTS organizer_id INTEGER")
+        cur.execute("ALTER TABLE events ADD COLUMN IF NOT EXISTS min_participants INTEGER DEFAULT 2")
+        cur.execute("ALTER TABLE events ADD COLUMN IF NOT EXISTS max_participants INTEGER DEFAULT 100")
+
+        cur.execute("""
+        CREATE TABLE IF NOT EXISTS match_results (
+            id INTEGER GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+            event_id INTEGER NOT NULL,
+            registration_id INTEGER NOT NULL,
+            match_number INTEGER,
+            player_rank INTEGER,
+            kills INTEGER DEFAULT 0,
+            deaths INTEGER DEFAULT 0,
+            score INTEGER DEFAULT 0,
+            result TEXT,
+            submitted_by TEXT,
+            verified_at TIMESTAMP,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+        """)
+        cur.execute("""
+        CREATE TABLE IF NOT EXISTS leaderboards (
+            id INTEGER GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+            event_id INTEGER NOT NULL,
+            username TEXT NOT NULL,
+            rank INTEGER,
+            score INTEGER DEFAULT 0,
+            wins INTEGER DEFAULT 0,
+            participation_count INTEGER DEFAULT 0,
+            avg_score REAL DEFAULT 0,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+        """)
+        cur.execute("""
+        CREATE TABLE IF NOT EXISTS audit_logs (
+            id INTEGER GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+            action_type TEXT NOT NULL,
+            user_id INTEGER,
+            username TEXT,
+            target_id INTEGER,
+            target_type TEXT,
+            old_value TEXT,
+            new_value TEXT,
+            ip_address TEXT,
+            user_agent TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+        """)
+        cur.execute("""
+        CREATE TABLE IF NOT EXISTS system_analytics (
+            id INTEGER GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+            metric_type TEXT NOT NULL,
+            metric_value INTEGER DEFAULT 0,
+            metric_data TEXT,
+            recorded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+        """)
+        cur.execute("""
+        CREATE TABLE IF NOT EXISTS player_reports (
+            id INTEGER GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+            reporter_username TEXT NOT NULL,
+            reported_username TEXT NOT NULL,
+            report_type TEXT,
+            reason TEXT,
+            status TEXT DEFAULT 'pending',
+            admin_notes TEXT,
+            resolved_at TIMESTAMP,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+        """)
+        cur.execute("""
+        CREATE TABLE IF NOT EXISTS promo_codes (
+            id INTEGER GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+            code TEXT NOT NULL UNIQUE,
+            discount_type TEXT,
+            discount_value INTEGER,
+            max_uses INTEGER,
+            current_uses INTEGER DEFAULT 0,
+            min_amount INTEGER DEFAULT 0,
+            valid_from TIMESTAMP,
+            valid_until TIMESTAMP,
+            is_active INTEGER DEFAULT 1,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+        """)
+        cur.execute("""
+        CREATE TABLE IF NOT EXISTS support_tickets (
+            id INTEGER GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+            username TEXT NOT NULL,
+            title TEXT NOT NULL,
+            description TEXT,
+            category TEXT,
+            priority TEXT DEFAULT 'medium',
+            status TEXT DEFAULT 'open',
+            assigned_to TEXT,
+            resolution_notes TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            resolved_at TIMESTAMP
+        )
+        """)
 
         try:
             cur.execute("SELECT COUNT(*) FROM events")
@@ -2674,7 +2803,6 @@ def faq_page():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     # default to home (index) after login for players
-    next_page = request.args.get('next', url_for('home'))
     next_page = request.args.get('next', url_for('home'))
     welcome_user = session.pop('welcome_user', None)
     if request.method == 'POST':
@@ -3490,8 +3618,8 @@ def report_player():
         cur.execute(
             '''SELECT id FROM player_reports 
                WHERE reporter_username = ? AND reported_username = ? 
-               AND created_at > datetime('now', '-7 days')''',
-            (username, reported_username)
+               AND created_at > ?''',
+            (username, reported_username, (datetime.utcnow() - timedelta(days=7)).isoformat())
         )
         if cur.fetchone():
             conn.close()
@@ -3552,8 +3680,13 @@ def _finalize_registration_payment(order_id, payment_id, reg_id=None):
     # Only decrement slots once, when transitioning into completed.
     if current_status != 'completed' and reg_event_id:
         try:
-            cur.execute('BEGIN IMMEDIATE')
-            cur.execute('SELECT slots_left, is_open FROM events WHERE id = ?', (reg_event_id,))
+            if not USE_POSTGRES:
+                cur.execute('BEGIN IMMEDIATE')
+            lock_clause = ' FOR UPDATE' if USE_POSTGRES else ''
+            cur.execute(
+                f'SELECT slots_left, is_open FROM events WHERE id = ?{lock_clause}',
+                (reg_event_id,)
+            )
             er = cur.fetchone()
             if not er:
                 conn.rollback()
@@ -3583,12 +3716,12 @@ def _finalize_registration_payment(order_id, payment_id, reg_id=None):
     # Some existing DBs may not have paid_at; fallback gracefully.
     try:
         cur.execute(
-            'UPDATE registrations SET payment_id = ?, status = "completed", order_id = ?, paid_at = ? WHERE id = ?',
+            "UPDATE registrations SET payment_id = ?, status = 'completed', order_id = ?, paid_at = ? WHERE id = ?",
             (payment_id, order_id, datetime.utcnow().isoformat(), reg_pk)
         )
     except Exception:
         cur.execute(
-            'UPDATE registrations SET payment_id = ?, status = "completed", order_id = ? WHERE id = ?',
+            "UPDATE registrations SET payment_id = ?, status = 'completed', order_id = ? WHERE id = ?",
             (payment_id, order_id, reg_pk)
         )
     conn.commit()
@@ -4138,9 +4271,15 @@ def save_registration(data, payment_id, order_id):
             try:
                 event_id = int(event_id)
                 # Start a transaction and obtain a write lock to avoid race conditions
-                # BEGIN IMMEDIATE requests a reserved write lock in SQLite
-                cur.execute('BEGIN IMMEDIATE')
-                cur.execute('SELECT slots_left, max_slots, is_open, start_time, end_time FROM events WHERE id = ?', (event_id,))
+                # BEGIN IMMEDIATE is SQLite-only; PostgreSQL starts a normal
+                # transaction here and uses its row-level locking semantics.
+                cur.execute('BEGIN' if USE_POSTGRES else 'BEGIN IMMEDIATE')
+                lock_clause = ' FOR UPDATE' if USE_POSTGRES else ''
+                cur.execute(
+                    f'SELECT slots_left, max_slots, is_open, start_time, end_time '
+                    f'FROM events WHERE id = ?{lock_clause}',
+                    (event_id,)
+                )
                 row = cur.fetchone()
                 # SQLite doesn't support FOR UPDATE; fallback handle: re-query and enforce
                 if not row:
@@ -4281,7 +4420,7 @@ def save_registration(data, payment_id, order_id):
         conn.commit()
         # create an admin notification about the new registration
         try:
-            reg_id = cur.lastrowid
+            reg_id = registration_id
             username = session.get('user')
             mode = data.get('mode')
             msg = f"New registration: {mode} by {username} (reg id {reg_id})"
@@ -5353,7 +5492,10 @@ def admin_dashboard():
     notifications = cur.fetchall()
     # Today's signups
     try:
-        cur.execute("SELECT id, username, email, created_at FROM users WHERE date(created_at) = date('now') ORDER BY created_at DESC")
+        cur.execute(
+            "SELECT id, username, email, created_at FROM users WHERE created_at >= ? ORDER BY created_at DESC",
+            (_current_local_time().date().isoformat(),)
+        )
         signups_today = cur.fetchall()
     except Exception:
         signups_today = []
@@ -5416,7 +5558,7 @@ def admin_overview_status():
         cur.execute("SELECT COUNT(*) FROM wallet_withdrawal_requests WHERE COALESCE(status, 'pending') = 'pending'")
         pending_withdrawals = int(cur.fetchone()[0] or 0)
 
-        cur.execute('SELECT COUNT(*) FROM registrations WHERE COALESCE(status, \"pending\") = \"pending\"')
+        cur.execute("SELECT COUNT(*) FROM registrations WHERE COALESCE(status, 'pending') = 'pending'")
         pending_payments = int(cur.fetchone()[0] or 0)
 
         cur.execute('SELECT id, title, slots_left, is_open FROM events ORDER BY id')

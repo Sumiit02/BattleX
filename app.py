@@ -2685,13 +2685,16 @@ def login():
         admin_code_submitted = request.form.get('admin_code')
         # Allow login by username OR email for player role
         conn = None
+        db_exceptions = (sqlite3.Error,)
+        if psycopg2 is not None:
+            db_exceptions = db_exceptions + (psycopg2.Error,)
         try:
             conn = sqlite3.connect(DB_NAME)
             cur = conn.cursor()
             # Allow lookup for any role; we'll inspect role after verifying password
             cur.execute("SELECT * FROM users WHERE (username = ? OR email = ?)", (username_or_email, username_or_email))
             user = cur.fetchone()
-        except Exception as ex:
+        except db_exceptions as ex:
             print('Login database error:', ex)
             flash('Login is temporarily unavailable. Please try again shortly.', 'error')
             return render_template('login.html', next=next_page, welcome_user=welcome_user), 503

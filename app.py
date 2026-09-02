@@ -153,7 +153,8 @@ def _db_connect(database_name=DB_NAME, *args, **kwargs):
         if psycopg2 is None:
             raise RuntimeError('psycopg2 is required when DATABASE_URL is set for PostgreSQL')
         sslmode = os.getenv('PGSSLMODE') or ('require' if IS_PRODUCTION else 'prefer')
-        raw = psycopg2.connect(DATABASE_URL, sslmode=sslmode)
+        # Do not let an unavailable managed database hold a web worker indefinitely.
+        raw = psycopg2.connect(DATABASE_URL, sslmode=sslmode, connect_timeout=10)
         raw.autocommit = False
         return _CompatConnection(raw, use_postgres=True)
     return _ORIGINAL_SQLITE_CONNECT(database_name, *args, **kwargs)
@@ -2683,12 +2684,23 @@ def login():
         password = request.form.get('password')
         admin_code_submitted = request.form.get('admin_code')
         # Allow login by username OR email for player role
-        conn = sqlite3.connect(DB_NAME)
-        cur = conn.cursor()
-        # Allow lookup for any role; we'll inspect role after verifying password
-        cur.execute("SELECT * FROM users WHERE (username = ? OR email = ?)", (username_or_email, username_or_email))
-        user = cur.fetchone()
-        conn.close()
+        conn = None
+        db_exceptions = (sqlite3.Error,)
+        if psycopg2 is not None:
+            db_exceptions = db_exceptions + (psycopg2.Error,)
+        try:
+            conn = sqlite3.connect(DB_NAME)
+            cur = conn.cursor()
+            # Allow lookup for any role; we'll inspect role after verifying password
+            cur.execute("SELECT * FROM users WHERE (username = ? OR email = ?)", (username_or_email, username_or_email))
+            user = cur.fetchone()
+        except db_exceptions as ex:
+            print('Login database error:', ex)
+            flash('Login is temporarily unavailable. Please try again shortly.', 'error')
+            return render_template('login.html', next=next_page, welcome_user=welcome_user), 503
+        finally:
+            if conn is not None:
+                conn.close()
 
         if user and check_password_hash(user[3], password):
             # user[1] is username, user[2] is email, user[4] is role

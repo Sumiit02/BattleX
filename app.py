@@ -2680,9 +2680,10 @@ def login():
     if request.method == 'POST':
         is_json_request = request.is_json
         payload = request.get_json() if is_json_request else None
-        username_or_email = request.form.get('username')
-        password = request.form.get('password')
-        admin_code_submitted = request.form.get('admin_code')
+        input_data = payload if isinstance(payload, dict) else request.form
+        username_or_email = input_data.get('username')
+        password = input_data.get('password')
+        admin_code_submitted = input_data.get('admin_code')
         # Allow login by username OR email for player role
         conn = None
         db_exceptions = (sqlite3.Error,)
@@ -2717,7 +2718,7 @@ def login():
             session['display_name'] = user[1]
             flash(f"Welcome back, {user[1]}!", "success")
             # Prefer a safe internal `next` param if provided, otherwise go to the appropriate dashboard
-            next_param = request.form.get('next') or request.args.get('next')
+            next_param = input_data.get('next') or request.args.get('next')
             # If the user is an admin, always send them to admin dashboard regardless of `next`
             if session.get('role') == 'admin':
                 return redirect(url_for('admin_dashboard'))
@@ -2761,11 +2762,10 @@ def signup():
         email = request.form.get('email')
         password = request.form.get('password')
         password2 = request.form.get('password2')
-        # Default role to 'player' if form does not include it
-        role = request.form.get('role') or 'player'
+        role = 'player'
         game_id = request.form.get('game_id')
         phone = request.form.get('phone')
-        admin_code = request.form.get('admin_code')
+        admin_code = None
 
         if password != password2:
             flash("Passwords do not match!", "error")
@@ -2826,13 +2826,6 @@ def signup():
             finally:
                 conn.close()
 
-            # For admin accounts, keep auto-login and send to admin dashboard
-            if role == 'admin':
-                session['user'] = username
-                session['role'] = role
-                flash("Account created successfully!", "success")
-                return redirect(url_for('admin_dashboard'))
-
             # For player accounts, do not auto-login — send them to login page and show a welcome message there
             session['welcome_user'] = username
             flash("Account created successfully! Please log in to continue.", "success")
@@ -2860,10 +2853,10 @@ def signup_ajax():
     email = data.get('email')
     password = data.get('password')
     password2 = data.get('password2')
-    role = data.get('role') or 'player'
+    role = 'player'
     game_id = data.get('game_id')
     phone = data.get('phone')
-    admin_code = data.get('admin_code')
+    admin_code = None
 
     # basic checks
     if not username or not email or not password:
@@ -2911,13 +2904,7 @@ def signup_ajax():
             pass
         conn.close()
 
-        # decide redirect target
-        if role == 'admin':
-            redirect_to = url_for('admin_dashboard')
-        else:
-            redirect_to = url_for('home')
-
-        return jsonify({'success': True, 'redirect': redirect_to, 'message': 'Account created successfully!'}), 201
+        return jsonify({'success': True, 'redirect': url_for('home'), 'message': 'Account created successfully!'}), 201
     except Exception as e:
         print('signup_ajax error:', e)
         return jsonify({'success': False, 'error': 'Failed to create account. Please try again later.'}), 500
@@ -3659,6 +3646,9 @@ def create_payment_order():
             event_id = int(event_id) if event_id is not None and str(event_id).strip() != '' else None
         except Exception:
             return jsonify({'success': False, 'error': 'Invalid event_id'}), 400
+
+        if reg_id is None and event_id is None:
+            return jsonify({'success': False, 'error': 'registration_id or event_id is required'}), 400
 
         amount = 10000  # default ₹100 in paise
         customer_email = (data.get('email') or '').strip()

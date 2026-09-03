@@ -821,6 +821,13 @@ def _is_valid_mobile(value):
 def _is_valid_upi(value):
     return bool(re.match(r'^[A-Za-z0-9._-]{2,}@[A-Za-z0-9]{2,}$', str(value or '').strip()))
 
+
+def _cashfree_customer_id(value, prefix='player'):
+    """Build a Cashfree-compatible customer id from a display name or username."""
+    normalized = re.sub(r'[^A-Za-z0-9_-]', '_', str(value or '').strip())
+    normalized = re.sub(r'_+', '_', normalized).strip('_') or 'guest'
+    return f'{prefix}_{normalized}'[:50]
+
 # ---------- CASHFREE CONFIGURATION ----------
 CASHFREE_APP_ID = os.getenv('CASHFREE_APP_ID', '').strip()
 CASHFREE_SECRET_KEY = os.getenv('CASHFREE_SECRET_KEY', '').strip()
@@ -3056,7 +3063,7 @@ def wallet_deposit():
         'order_amount': float(amount_rupees),
         'order_currency': 'INR',
         'customer_details': {
-            'customer_id': f"wallet_{username}",
+            'customer_id': _cashfree_customer_id(username, prefix='wallet'),
             'customer_name': username,
             'customer_email': customer_email,
             'customer_phone': customer_phone
@@ -3875,7 +3882,9 @@ def create_payment_order():
             'order_amount': order_amount,
             'order_currency': 'INR',
             'customer_details': {
-                'customer_id': f"player_{(session.get('user') or 'guest')}_{registration_part or 'new'}",
+                'customer_id': _cashfree_customer_id(
+                    f"{session.get('user') or 'guest'}_{registration_part or 'new'}"
+                ),
                 'customer_name': customer_name or 'Player',
                 'customer_email': customer_email,
                 'customer_phone': customer_phone

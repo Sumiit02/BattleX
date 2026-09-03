@@ -1773,14 +1773,18 @@ def _db_upgrade():
 @app.route('/health')
 def health_check():
     """Simple health check endpoint."""
+    conn = None
     try:
         conn = sqlite3.connect(DB_NAME)
         cur = conn.cursor()
         cur.execute("SELECT 1")
-        conn.close()
         return jsonify({'status': 'healthy', 'timestamp': datetime.utcnow().isoformat()}), 200
-    except Exception:
-        return jsonify({'status': 'unhealthy', 'timestamp': datetime.utcnow().isoformat()}), 500
+    except Exception as ex:
+        print('Health check database error:', ex)
+        return jsonify({'status': 'unhealthy', 'timestamp': datetime.utcnow().isoformat()}), 503
+    finally:
+        if conn is not None:
+            conn.close()
 
 
 @app.route('/api/version')
@@ -2675,7 +2679,6 @@ def faq_page():
 def login():
     # default to home (index) after login for players
     next_page = request.args.get('next', url_for('home'))
-    next_page = request.args.get('next', url_for('home'))
     welcome_user = session.pop('welcome_user', None)
     if request.method == 'POST':
         is_json_request = request.is_json
@@ -2689,19 +2692,31 @@ def login():
         db_exceptions = (sqlite3.Error,)
         if psycopg2 is not None:
             db_exceptions = db_exceptions + (psycopg2.Error,)
+        def find_user():
+            lookup_conn = sqlite3.connect(DB_NAME)
+            try:
+                lookup_cur = lookup_conn.cursor()
+                lookup_cur.execute("SELECT * FROM users WHERE (username = ? OR email = ?)", (username_or_email, username_or_email))
+                return lookup_cur.fetchone()
+            finally:
+                lookup_conn.close()
+
         try:
-            conn = sqlite3.connect(DB_NAME)
-            cur = conn.cursor()
-            # Allow lookup for any role; we'll inspect role after verifying password
-            cur.execute("SELECT * FROM users WHERE (username = ? OR email = ?)", (username_or_email, username_or_email))
-            user = cur.fetchone()
+            user = find_user()
         except db_exceptions as ex:
-            print('Login database error:', ex)
-            flash('Login is temporarily unavailable. Please try again shortly.', 'error')
-            return render_template('login.html', next=next_page, welcome_user=welcome_user), 503
-        finally:
-            if conn is not None:
-                conn.close()
+            # A failed first boot can leave the schema incomplete after a transient
+            # Render database wake-up. Retry initialization once before failing login.
+            print('Login database error; retrying database initialization:', ex)
+            if _db_upgrade():
+                try:
+                    user = find_user()
+                except db_exceptions as retry_ex:
+                    print('Login database retry failed:', retry_ex)
+                    flash('Login is temporarily unavailable. Please try again shortly.', 'error')
+                    return render_template('login.html', next=next_page, welcome_user=welcome_user), 503
+            else:
+                flash('Login is temporarily unavailable. Please try again shortly.', 'error')
+                return render_template('login.html', next=next_page, welcome_user=welcome_user), 503
 
         if user and check_password_hash(user[3], password):
             # user[1] is username, user[2] is email, user[4] is role

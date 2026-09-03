@@ -1770,6 +1770,17 @@ def _db_upgrade():
         return False
 
 
+def _connect_with_recovery():
+    """Open the configured database and retry schema bootstrap once after failure."""
+    try:
+        return sqlite3.connect(DB_NAME)
+    except Exception as first_error:
+        print(f"Database connection failed; retrying initialization: {first_error}")
+        if not _db_upgrade():
+            raise
+        return sqlite3.connect(DB_NAME)
+
+
 @app.route('/health')
 def health_check():
     """Simple health check endpoint."""
@@ -2693,7 +2704,7 @@ def login():
         if psycopg2 is not None:
             db_exceptions = db_exceptions + (psycopg2.Error,)
         def find_user():
-            lookup_conn = sqlite3.connect(DB_NAME)
+            lookup_conn = _connect_with_recovery()
             try:
                 lookup_cur = lookup_conn.cursor()
                 lookup_cur.execute("SELECT * FROM users WHERE (username = ? OR email = ?)", (username_or_email, username_or_email))
@@ -2896,7 +2907,7 @@ def signup_ajax():
 
     hashed = generate_password_hash(password)
     try:
-        conn = sqlite3.connect(DB_NAME)
+        conn = _connect_with_recovery()
         cur = conn.cursor()
         cur.execute('SELECT id FROM users WHERE username = ? OR email = ?', (username, email))
         existing = cur.fetchone()
